@@ -35,6 +35,21 @@ from fragility_engine.scenarios import (
     create_preset_scenario,
     validate_scenario_against_portfolio,
 )
+from fragility_engine.fragility import (
+    FragilityExperimentResult,
+    MetricSensitivityRanking,
+    PerturbationImpact,
+    calculate_ewma_volatility,
+    calculate_portfolio_liquidation_shock,
+    compute_changes,
+    perturb_correlation_matrix,
+    rank_perturbation_sensitivities,
+    run_confidence_level_perturbation,
+    run_correlation_perturbation,
+    run_lookback_perturbation,
+    run_return_friction_perturbation,
+    run_volatility_estimator_perturbation,
+)
 
 __version__ = "0.1.0"
 __all__ = [
@@ -70,4 +85,18 @@ __all__ = [
     "validate_scenario_against_portfolio",
     "apply_scenario",
     "create_preset_scenario",
+    # Fragility Lab Engine
+    "PerturbationImpact",
+    "FragilityExperimentResult",
+    "MetricSensitivityRanking",
+    "compute_changes",
+    "run_lookback_perturbation",
+    "calculate_ewma_volatility",
+    "run_volatility_estimator_perturbation",
+    "run_return_friction_perturbation",
+    "calculate_portfolio_liquidation_shock",
+    "perturb_correlation_matrix",
+    "run_correlation_perturbation",
+    "run_confidence_level_perturbation",
+    "rank_perturbation_sensitivities",
 ]

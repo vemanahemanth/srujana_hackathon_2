@@ -44,9 +44,32 @@ pip install -e backend
 
 ### 3. Run Automated Tests
 ```bash
-# Execute full unit test suite (149 tests across Phase 1-4)
-pytest backend/tests/ -v
+# Execute full unit test suite with branch coverage (212 tests, 92% coverage)
+pytest backend/tests/ -v --cov=fragility_engine --cov-report=term-missing --cov-branch
 ```
+
+---
+
+## Fragility Lab (Phase 5)
+
+Located in `backend/fragility_engine/fragility.py`:
+- **Risk & Model Robustness Laboratory**:
+  - Measures how sensitive risk conclusions and portfolio metrics are to shifts in underlying assumptions.
+  - Generates structured, immutable `FragilityExperimentResult` artifacts containing baseline metrics, perturbed metrics, absolute changes ($\Delta = M_1 - M_0$), and relative changes ($\Delta / |M_0|$).
+  - Handles zero-baseline relative change safely by emitting `None` (JSON `null`) rather than NaN or infinity.
+- **Supported Perturbation Models**:
+  - **Lookback Window Perturbation (`run_lookback_perturbation`)**: Evaluates risk sensitivity when the historical sample window is truncated.
+  - **Alternative Volatility Estimator (`run_volatility_estimator_perturbation`)**: Compares standard sample volatility against RiskMetrics Exponentially Weighted Moving Average (EWMA) volatility (`calculate_ewma_volatility`, $\lambda \in (0, 1)$).
+  - **Return Friction Shock (`run_return_friction_perturbation`)**: Evaluates return series drag by deducting constant basis points ($r_t' = r_t - \frac{c}{10000}$) to measure tail risk expansion.
+  - **Portfolio Liquidation Cost Shock (`calculate_portfolio_liquidation_shock`)**: Models turnover execution friction on total portfolio valuation ($\text{Cost} = \text{MV} \times \tau \times \frac{c}{10000}$).
+  - **Multivariate Correlation Stress (`run_correlation_perturbation`)**: Perturbs empirical correlation matrix toward a uniform crisis target ($C_\alpha = (1-\alpha) C_0 + \alpha C_{\text{target}}$) for synchronized 2D return matrices, evaluating diversified portfolio risk expansion.
+  - **Tail Confidence Level Shift (`run_confidence_level_perturbation`)**: Evaluates tail risk expansion between 95% and 99% confidence.
+- **Sensitivity Ranking Engine (`rank_perturbation_sensitivities`)**:
+  - Ranks experiments by absolute impact $|\Delta|$ on any target metric, identifying the most vulnerable modeling assumption without arbitrary composite scores.
+- **Reports & Audits**:
+  - Phase 4.1 Verification: [`docs/phase-4.1-verification-report.md`](file:///Users/vemanahemanthbabu/srujana_hackathon_2/docs/phase-4.1-verification-report.md).
+  - Phase 5 Issue Review: [`docs/phase-5-issue-review.md`](file:///Users/vemanahemanthbabu/srujana_hackathon_2/docs/phase-5-issue-review.md).
+  - Phase 5 Implementation Report: [`docs/phase-5-report.md`](file:///Users/vemanahemanthbabu/srujana_hackathon_2/docs/phase-5-report.md).
 
 ---
 
