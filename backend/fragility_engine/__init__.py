@@ -72,6 +72,24 @@ from fragility_engine.studio import (
     compare_experiment_reports,
     execute_studio_experiment,
 )
+from fragility_engine.plugins import (
+    ModelPlugin,
+    PluginMetadata,
+    ModelExecutionResult,
+    PluginRegistry,
+    get_default_registry,
+    HistoricalSimulationPlugin,
+    ParametricGaussianPlugin,
+    EWMAVolatilityPlugin,
+    PortfolioConcentrationPlugin,
+)
+from fragility_engine.benchmarks import (
+    BenchmarkSpecification,
+    ModelBenchmarkEntry,
+    ModelRankingEntry,
+    BenchmarkReport,
+    execute_model_benchmark,
+)
 
 __version__ = "0.1.0"
 __all__ = [
@@ -140,4 +158,19 @@ __all__ = [
     "LocalExperimentCatalog",
     "execute_studio_experiment",
     "compare_experiment_reports",
+    # Plugin System & Model Benchmarking (Phase 8)
+    "ModelPlugin",
+    "PluginMetadata",
+    "ModelExecutionResult",
+    "PluginRegistry",
+    "get_default_registry",
+    "HistoricalSimulationPlugin",
+    "ParametricGaussianPlugin",
+    "EWMAVolatilityPlugin",
+    "PortfolioConcentrationPlugin",
+    "BenchmarkSpecification",
+    "ModelBenchmarkEntry",
+    "ModelRankingEntry",
+    "BenchmarkReport",
+    "execute_model_benchmark",
 ]

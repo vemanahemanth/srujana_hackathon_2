@@ -111,6 +111,7 @@ def canonical_json_dumps(obj: Any) -> str:
         sort_keys=True,
         ensure_ascii=True,
         separators=(",", ":"),
+        allow_nan=False,
     )
 
 
@@ -512,8 +513,14 @@ def verify_experiment_invariants(
         failures.append("Non-finite metric detected in baseline metrics")
 
     # Check 4: Coherence invariant ES >= VaR
-    var_val = baseline_metrics.get("var_historical") or baseline_metrics.get("var_95")
-    es_val = baseline_metrics.get("expected_shortfall") or baseline_metrics.get("expected_shortfall_95")
+    var_val = baseline_metrics.get("var_historical")
+    if var_val is None:
+        var_val = baseline_metrics.get("var_95")
+
+    es_val = baseline_metrics.get("expected_shortfall")
+    if es_val is None:
+        es_val = baseline_metrics.get("expected_shortfall_95")
+
     if var_val is not None and es_val is not None:
         es_ge_var = es_val >= var_val - 1e-9
         details["es_greater_or_equal_var"] = es_ge_var
@@ -523,7 +530,10 @@ def verify_experiment_invariants(
             )
 
     # Check 5: Maximum drawdown bounds
-    mdd = baseline_metrics.get("maximum_drawdown") or baseline_metrics.get("max_drawdown")
+    mdd = baseline_metrics.get("maximum_drawdown")
+    if mdd is None:
+        mdd = baseline_metrics.get("max_drawdown")
+
     if mdd is not None:
         mdd_valid = 0.0 <= mdd <= 1.0
         details["mdd_within_unit_interval"] = mdd_valid
@@ -587,6 +597,16 @@ class ReproducibilityRunResult:
             "manifest": self.manifest.to_dict(),
             "invariant_report": self.invariant_report.to_dict(),
         }
+def capture_environment_metadata() -> Dict[str, str]:
+    """Capture runtime platform, Python, and dependency versions."""
+    return {
+        "python_version": sys.version.split()[0],
+        "platform_os": platform.system(),
+        "platform_release": platform.release(),
+        "platform_machine": platform.machine(),
+        "numpy_version": np.__version__,
+        "fragility_engine_version": getattr(fragility_engine, "__version__", "0.1.0"),
+    }
 
 
 def run_reproducible_experiment(
@@ -788,14 +808,7 @@ def run_reproducible_experiment(
     output_fp = compute_canonical_hash(output_repr)
 
     # 6. Environment Metadata
-    environment_info = {
-        "python_version": sys.version.split()[0],
-        "platform_os": platform.system(),
-        "platform_release": platform.release(),
-        "platform_machine": platform.machine(),
-        "numpy_version": np.__version__,
-        "fragility_engine_version": getattr(fragility_engine, "__version__", "0.1.0"),
-    }
+    environment_info = capture_environment_metadata()
 
     manifest = ReproducibilityManifest(
         experiment_id=spec.experiment_id,

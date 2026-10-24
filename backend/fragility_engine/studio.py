@@ -30,6 +30,7 @@ import json
 import math
 import os
 import re
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -839,8 +840,14 @@ class LocalExperimentCatalog:
         if not isinstance(experiment_id, str) or not experiment_id.strip():
             raise ValueError("experiment_id cannot be blank")
 
-        if ".." in experiment_id or "/" in experiment_id or "\\" in experiment_id or "\0" in experiment_id:
+        if any(c in experiment_id for c in ("/", "\\", "\0", os.sep)) or ".." in experiment_id:
             raise ValueError(f"Unsafe identifier: '{experiment_id}' contains invalid path characters")
+
+        if os.altsep and os.altsep in experiment_id:
+            raise ValueError(f"Unsafe identifier: '{experiment_id}' contains invalid path characters")
+
+        if experiment_id.strip(".") == "":
+            raise ValueError(f"Unsafe identifier: '{experiment_id}' cannot consist solely of dots")
 
         cleaned = re.sub(r"[^a-zA-Z0-9_\-\.]", "_", experiment_id)
         if not cleaned:
@@ -848,12 +855,17 @@ class LocalExperimentCatalog:
         return cleaned
 
     def _get_report_path(self, experiment_id: str) -> Path:
-        """Resolve safe filepath for an experiment report."""
+        """Resolve safe filepath for an experiment report, preventing directory escape."""
         safe_id = self._sanitize_id(experiment_id)
-        return self.catalog_dir / f"{safe_id}.json"
+        target_path = (self.catalog_dir / f"{safe_id}.json").resolve()
+        try:
+            target_path.relative_to(self.catalog_dir.resolve())
+        except ValueError:
+            raise ValueError(f"Path escape detected: identifier '{experiment_id}' resolves outside catalog directory")
+        return target_path
 
     def save_report(self, report: ExperimentReport, overwrite: bool = False) -> Path:
-        """Store an ExperimentReport to local catalog storage.
+        """Store an ExperimentReport to local catalog storage using atomic file replacement.
 
         Args:
             report: The ExperimentReport instance to persist.
@@ -867,6 +879,9 @@ class LocalExperimentCatalog:
 
         dest_path = self._get_report_path(report.experiment_id)
 
+        if dest_path.is_symlink():
+            raise ValueError(f"Security violation: destination '{dest_path}' is a symlink")
+
         if dest_path.exists() and not overwrite:
             raise FileExistsError(
                 f"Report for experiment '{report.experiment_id}' already exists at {dest_path}. "
@@ -874,7 +889,30 @@ class LocalExperimentCatalog:
             )
 
         json_content = report.to_json(indent=2)
-        dest_path.write_text(json_content, encoding="utf-8")
+
+        # Atomic write via temporary file in the catalog directory
+        temp_file = tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=self.catalog_dir,
+            delete=False,
+            prefix=f".tmp_{dest_path.stem}_",
+            suffix=".json",
+        )
+        temp_path = Path(temp_file.name)
+        try:
+            temp_file.write(json_content)
+            temp_file.flush()
+            os.fsync(temp_file.fileno())
+            temp_file.close()
+            os.replace(temp_path, dest_path)
+        finally:
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except OSError:
+                    pass
+
         return dest_path
 
     def get_report(self, experiment_id: str) -> ExperimentReport:
@@ -887,12 +925,23 @@ class LocalExperimentCatalog:
             Loaded ExperimentReport instance.
         """
         report_path = self._get_report_path(experiment_id)
+
+        if report_path.is_symlink():
+            resolved = report_path.resolve()
+            try:
+                resolved.relative_to(self.catalog_dir.resolve())
+            except ValueError:
+                raise ValueError(f"Symlink escape detected: '{experiment_id}' points outside catalog directory")
+
         if not report_path.exists():
             raise FileNotFoundError(f"No catalog report found for experiment_id '{experiment_id}' at {report_path}")
 
         try:
             content = report_path.read_text(encoding="utf-8")
-            return ExperimentReport.from_json(content)
+            rep = ExperimentReport.from_json(content)
+            if not rep.schema_version:
+                raise ValueError(f"Report for '{experiment_id}' is missing schema_version")
+            return rep
         except Exception as exc:
             raise ValueError(f"Corrupted catalog file for experiment '{experiment_id}': {exc}") from exc
 
@@ -915,6 +964,8 @@ class LocalExperimentCatalog:
         entries: List[Dict[str, Any]] = []
 
         for p in sorted(self.catalog_dir.glob("*.json")):
+            if p.name.startswith(".tmp_"):
+                continue
             try:
                 data = json.loads(p.read_text(encoding="utf-8"))
                 exp_status = data.get("status", "unknown")
@@ -950,6 +1001,9 @@ class LocalExperimentCatalog:
             True if file was deleted, False if file did not exist.
         """
         report_path = self._get_report_path(experiment_id)
+        if report_path.is_symlink():
+            report_path.unlink()
+            return True
         if report_path.exists():
             report_path.unlink()
             return True

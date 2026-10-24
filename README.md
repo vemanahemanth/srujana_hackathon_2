@@ -44,8 +44,129 @@ pip install -e backend
 
 ### 3. Run Automated Tests
 ```bash
-# Execute full unit test suite with branch coverage (280 tests, 92% coverage)
+# Execute full unit test suite with branch coverage (323 tests, 92% coverage)
 .venv/bin/python -m pytest backend/tests/ -v --cov=fragility_engine --cov-report=term-missing --cov-branch
+```
+
+---
+
+## Model Plugin System & Benchmarking Laboratory (Phase 8)
+
+Located in `backend/fragility_engine/plugins.py` and `backend/fragility_engine/benchmarks.py`:
+- **Product Goal**: An assumption-aware quantitative model benchmarking laboratory and typed plugin architecture. Allows researchers and risk managers to evaluate competing financial risk models, test sensitivity to assumptions, validate outputs, and rank models under identical market data and shock conditions.
+
+### Key Capabilities
+
+1. **Typed Model Plugin Contract (`ModelPlugin`)**:
+   - Clean, decoupled abstract protocol requiring three methods:
+     - `@property metadata -> PluginMetadata`: Stable identifier, version, supported data types, capabilities, and explicit limitations.
+     - `validate_input(data, config) -> None`: Pre-execution validation screening for non-finite values, empty datasets, invalid dimensions, and out-of-bounds parameters.
+     - `execute(data, config) -> ModelExecutionResult`: Computes verified metrics, execution timing in milliseconds, observation counts, and diagnostic warnings.
+   - Built-in adapters directly reuse the core engine without algorithm duplication:
+     - `builtin.historical_simulation`: Empirical historical VaR, coherent Expected Shortfall (Acerbi-Tasche), annualized volatility, and drawdown dynamics.
+     - `builtin.parametric_gaussian`: Theoretical analytical Gaussian benchmark ($\text{VaR}_\alpha = -\mu + z_\alpha \sigma$, $\text{ES}_\alpha = -\mu + \sigma \frac{\phi(z_\alpha)}{1 - \alpha}$).
+     - `builtin.ewma`: RiskMetrics Exponentially Weighted Moving Average volatility with decay factor $\lambda$.
+     - `builtin.portfolio_concentration`: Herfindahl-Hirschman Indices (decimal and points) and total portfolio valuation.
+
+2. **In-Process Plugin Registry (`PluginRegistry`)**:
+   - Deterministic plugin registration, safe unregistration, lookup, and capability filtering.
+   - Rejects duplicate identifiers and unsafe path traversal characters.
+   - Pre-loaded default registry accessible via `get_default_registry()`.
+
+3. **Deterministic Model Benchmarking (`execute_model_benchmark`)**:
+   - **Fair Comparison Guarantee**: Compares models evaluated on identical sample windows and baseline configurations. Incompatible models (e.g. Portfolio models applied to Return Series) are isolated with `incompatible` status.
+   - **Robustness Perturbation Testing**: Runs models through parameter shocks (return friction drag, lookback window alterations, decay factor shifts) and records baseline vs perturbed metric deltas.
+   - **Post-Execution Invariant Verification**: Verifies mathematical properties across all outputs via `verify_experiment_invariants`.
+   - **Directional Ranking**: Transparent ranking supporting `lower_is_better` (for risk/loss metrics: VaR, ES, Volatility, Drawdown) and `higher_is_better` (for return/diversification metrics). Detects and reports ties explicitly.
+   - **Fault Isolation**: Caught exceptions in buggy plugins are isolated without crashing the benchmark or corrupting valid results.
+
+4. **Multi-Format Publication Reports (`BenchmarkReport`)**:
+   - **JSON (`.to_json()`)**: Machine-readable RFC 8259 canonical format with embedded reproducibility manifests and cryptographic provenance hashes.
+   - **Markdown (`.to_markdown()`)**: Publication-grade tables with metric grids, directional rankings, diagnostic warnings, and limitations.
+   - **CSV (`.to_csv()`)**: Standardized RFC 4180 grid format for downstream analysis in spreadsheets or data science workflows.
+
+5. **Security & Containment Boundaries**:
+   - Plugins execute in-process with application permissions. External code auto-execution, dynamic `pip` installation, and remote imports are prohibited.
+   - Strict identifier validation prevents filesystem path traversal attacks.
+
+### Implementing a Custom Plugin
+
+```python
+from typing import Any, Mapping
+import numpy as np
+from fragility_engine.plugins import ModelPlugin, PluginMetadata, ModelExecutionResult
+
+class CustomRollingVolPlugin(ModelPlugin):
+    """Custom model computing 20-day rolling volatility."""
+
+    def __init__(self) -> None:
+        self._meta = PluginMetadata(
+            plugin_id="custom.rolling_vol",
+            name="Custom Rolling Volatility",
+            description="Computes standard deviation over the most recent 20 observations.",
+            plugin_version="1.0.0",
+            api_version="1.0.0",
+            supported_data_types=("return_series",),
+            capabilities=("rolling_vol_20",),
+            limitations=("Requires at least 20 observations; ignores long-term regime shifts.",),
+        )
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        return self._meta
+
+    def validate_input(self, data: Any, config: Mapping[str, Any]) -> None:
+        arr = np.asarray(data, dtype=np.float64)
+        if len(arr) < 20:
+            raise ValueError(f"CustomRollingVolPlugin requires >= 20 observations; got {len(arr)}")
+
+    def execute(self, data: Any, config: Mapping[str, Any]) -> ModelExecutionResult:
+        self.validate_input(data, config)
+        arr = np.asarray(data, dtype=np.float64)[-20:]
+        vol = float(np.std(arr, ddof=1)) * np.sqrt(252.0)
+        return ModelExecutionResult(
+            plugin_id=self._meta.plugin_id,
+            model_version=self._meta.plugin_version,
+            metrics={"rolling_vol_20": vol},
+            execution_time_ms=0.5,
+            observations_used=len(arr),
+            limitations=self._meta.limitations,
+        )
+```
+
+### Running a Benchmark Example
+
+```python
+import numpy as np
+from fragility_engine.benchmarks import BenchmarkSpecification, execute_model_benchmark
+
+# 1. Deterministic synthetic return data (fat-tailed Student-t)
+rng = np.random.default_rng(42)
+returns = rng.standard_t(df=4, size=500) * 0.015 - 0.0005
+
+# 2. Benchmark Specification
+spec = BenchmarkSpecification(
+    benchmark_id="BM-TAIL-001",
+    name="Tail Risk Benchmark: Historical vs Gaussian",
+    description="Evaluate empirical non-parametric VaR vs Gaussian under return friction.",
+    dataset_id="SYNTHETIC-T4-500D",
+    plugin_ids=("builtin.historical_simulation", "builtin.parametric_gaussian"),
+    metrics_to_compare=("var_95", "expected_shortfall_95", "volatility_annualized"),
+    target_ranking_metric="var_95",
+    ranking_direction="lower_is_better",
+    perturbation_specs=(
+        {"type": "return_friction", "parameters": {"friction_bps": 10.0}},
+    ),
+)
+
+# 3. Execute benchmark
+report = execute_model_benchmark(spec, dataset=returns)
+
+# 4. Inspect rankings and provenance
+print(f"Status: {report.status}")
+print(f"Provenance Hash: {report.output_fingerprint[:16]}...")
+for r in report.rankings:
+    print(f"Rank {r.rank}: {r.model_name} -> VaR(95%) = {r.metric_value * 100:.3f}%")
 ```
 
 ---
