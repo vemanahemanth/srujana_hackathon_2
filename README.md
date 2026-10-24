@@ -15,15 +15,17 @@ FragilityShield is **not** an investment advice platform, automated trading bot,
 
 ## Architecture Overview
 
-- **`backend/fragility_engine/`**: Pure, framework-agnostic Python quantitative calculation engine (`models.py`, `returns.py`).
-- **`backend/tests/`**: Automated unit test suite with 100% test coverage for domain contracts and numerical calculations.
-- **`frontend/`**: Planned React + TypeScript research dashboard (Phase 9).
-- **`data/sample_portfolios/`**: Illustrative test fixtures, including the ₹10 Lakh NSE sample portfolio.
-- **`docs/`**: Architecture plans and discovery reports (`phase-0-discovery-report.md`).
+- **`backend/fragility_engine/`**: Pure, framework-agnostic Python quantitative calculation engine (`models.py`, `returns.py`, `risk.py`, `scenarios.py`, `fragility.py`, `plugins.py`, `benchmarks.py`, `backtest.py`, `studio.py`, `reproducibility.py`).
+- **`backend/app.py`**: Starlette asynchronous REST API serving domain endpoints and static application assets.
+- **`frontend/`**: Interactive, responsive financial research workspace (`index.html`, `style.css`, `app.js`) with pure SVG charts (Donut, Equity Curve, Sensitivity Tornado, Breach Timeline).
+- **`backend/tests/`**: Comprehensive automated test suite with 376 tests and >92% statement coverage.
+- **`data/sample_portfolios/`**: Illustrative test fixtures, including the ₹10 Lakh NSE sample portfolio (`nse_10l.json`, `nse_10l.csv`).
+- **`data/experiments/`**: Local catalog storage for reproducible studio experiment reports.
+- **`docs/`**: Architecture plans, audit reviews, and completion reports (`phase-0` through `phase-9`).
 
 ---
 
-## Local Setup & Testing
+## Local Setup & Application Launch
 
 ### 1. Requirements
 - Python 3.10+ (tested on Python 3.14.6)
@@ -38,15 +40,62 @@ cd srujana_hackathon_2
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Install the engine in editable mode
+# Install the engine and API dependencies in editable mode
 pip install -e backend
 ```
 
-### 3. Run Automated Tests
+### 3. Launch the Interactive Application
 ```bash
-# Execute full unit test suite with branch coverage (358 tests, 92% coverage)
+# Start the FragilityShield research laboratory
+.venv/bin/python -m backend.app
+
+# Or directly with Uvicorn
+.venv/bin/uvicorn backend.app:app --host 127.0.0.1 --port 8000
+```
+Open your browser to: **`http://127.0.0.1:8000`**
+
+### 4. Run Automated Tests
+```bash
+# Execute application API tests
+.venv/bin/python -m pytest backend/tests/test_application_api.py -v
+
+# Execute full regression test suite with branch coverage (376 passed, 92% coverage)
 .venv/bin/python -m pytest backend/tests/ -v --cov=fragility_engine --cov-report=term-missing --cov-branch
 ```
+
+---
+
+## Interactive Application & Research Workspace (Phase 9)
+
+FragilityShield Phase 9 provides an assumption-aware research laboratory accessible via a modern web interface.
+
+### The 8 Core Research Laboratories
+1. **Overview**: Live summary of portfolio valuation, position counts, concentration indicators, baseline volatility/VaR KPIs, scenario loss metrics, and model ranking highlights.
+2. **Portfolio Lab**: Multi-asset portfolio creation and validation. Supports loading bundled ₹10L NSE JSON and CSV fixtures (`data/sample_portfolios/`) or pasting custom JSON/CSV. Calculates Herfindahl-Hirschman Index (decimal and points) across assets and sectors with SVG donut charts.
+3. **Risk Analysis**: Calculates Annualized Volatility, Value-at-Risk (95% & 99%), Expected Shortfall (CVaR), and Maximum Drawdown with dual-axis Equity Curve / Drawdown charts and interactive methodology explanation panels.
+4. **Scenario Lab**: Instantaneous factor and sector stress scenarios (e.g. Banking -20%, IT -10%). Performs full P&L reconciliation with sector attribution breakdown and explicit disclaimers regarding static sensitivity versus forecasting.
+5. **Fragility Lab (Central Differentiator)**: Investigates how risk estimates change when assumptions change. Executes perturbation attacks on historical lookback windows (20d vs 60d), volatility estimators (Sample StdDev vs RiskMetrics EWMA $\lambda=0.94$), transaction friction (10 bps drag), tail confidence shifts (95% vs 99%), and portfolio liquidation costs. Renders sensitivity tornado rankings to identify dominant model sensitivities.
+6. **Model Benchmarking**: Multi-model comparative laboratory evaluating registered plugins (`parametric_gaussian`, `historical_simulation`, `ewma`). Enforces Phase 8.1 ranking semantics ("A lower estimated VaR is not automatically a better risk model").
+7. **VaR Backtesting**: Rolling walk-forward evaluation aligning 1-step-ahead forecasts with realized returns without look-ahead contamination. Features breach timeline visualization, Kupiec POF test, and Christoffersen independence and conditional coverage tests.
+8. **Experiments & Reports**: Catalog of executed experiments, SHA-256 cryptographic reproducibility manifests, and formatted export to Markdown, JSON, and CSV.
+
+### REST API Endpoints
+
+| Method | Route | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/health` | Engine version, status, registered models, and capabilities |
+| `GET` | `/api/portfolios/sample?id=...` | Load bundled sample portfolio fixtures |
+| `POST` | `/api/portfolios/validate` | Validate user-uploaded portfolio JSON/CSV |
+| `POST` | `/api/portfolios/concentration` | Calculate asset and sector HHI concentration |
+| `POST` | `/api/risk/calculate` | Compute volatility, VaR, ES, and equity curve |
+| `POST` | `/api/scenarios/execute` | Run stress scenario with P&L reconciliation |
+| `POST` | `/api/fragility/run` | Execute assumption perturbation attacks and sensitivity ranking |
+| `GET` | `/api/benchmarks/models` | List registered quantitative model plugins |
+| `POST` | `/api/benchmarks/execute` | Execute comparative model benchmark evaluation |
+| `POST` | `/api/backtest/run` | Run rolling walk-forward backtest with Kupiec/Christoffersen tests |
+| `GET` | `/api/studio/catalog` | Retrieve saved experiment catalog |
+| `POST` | `/api/studio/experiment` | Execute and catalog unified studio experiment |
+| `POST` | `/api/export` | Export reports as JSON, Markdown, or CSV |
 
 ---
 
