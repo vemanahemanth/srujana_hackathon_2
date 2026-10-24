@@ -44,9 +44,103 @@ pip install -e backend
 
 ### 3. Run Automated Tests
 ```bash
-# Execute full unit test suite with branch coverage (250 tests, 92% coverage)
+# Execute full unit test suite with branch coverage (280 tests, 92% coverage)
 .venv/bin/python -m pytest backend/tests/ -v --cov=fragility_engine --cov-report=term-missing --cov-branch
 ```
+
+---
+
+## Experiment Studio & Reports (Phase 7)
+
+Located in `backend/fragility_engine/studio.py`:
+- **Product Goal**: An empirical research studio allowing quantitative researchers to define, execute, evaluate, compare, export, and catalog risk and fragility stress experiments through structured configurations.
+- **Key Capabilities**:
+  1. **Typed Experiment Definition (`StudioExperimentDefinition`)**:
+     - Configures `experiment_id`, `name`, `description`, `dataset_id`, `baseline_config` (confidence level, annualization factor), `perturbation_specs`, `target_ranking_metric`, `tags`, and metadata.
+     - Strict path-traversal prevention: disallows `..`, `/`, `\`, and null bytes.
+     - Separates calculation parameters from informational metadata.
+  2. **Automated Studio Execution (`execute_studio_experiment`)**:
+     - Orchestrates baseline evaluation, fragility shocks, independent invariant verification, sensitivity ranking, and reproducibility manifest generation.
+     - Employs honest 4-state status tracking: `completed`, `completed_with_warnings`, `failed_validation`, and `failed_execution`.
+  3. **Multi-Format Report Export (`ExperimentReport`)**:
+     - **JSON (`.to_json()`)**: Versioned, machine-readable canonical JSON (RFC 8259).
+     - **Markdown (`.to_markdown()`)**: Executive summary with unit-aware tables (`pts`, `%`, currency), diagnostic summaries, and methodological limitations.
+     - **CSV (`.to_csv()`)**: Tabular dataset with standardized headers including explicit `unit` designation.
+  4. **Cross-Experiment Comparison (`compare_experiment_reports`)**:
+     - Formally checks comparability: flags non-comparable runs when dataset IDs or input hashes differ.
+     - Itemizes baseline metric deltas against configurable tolerance $\epsilon$ (default $10^{-6}$).
+     - Analyzes perturbation impact changes and sensitivity rank shifts.
+  5. **Local Experiment Catalog (`LocalExperimentCatalog`)**:
+     - File-based catalog indexing reports as versioned JSON.
+     - Overwrite protection enabled by default (`overwrite=False`).
+     - Query filters by `status`, `tag`, and `dataset_id`.
+     - Graceful handling of missing or corrupted files with diagnostic error messages.
+     - Path-sanitized lookups and deletions.
+
+### Usage Example
+
+```python
+from fragility_engine import (
+    StudioExperimentDefinition,
+    execute_studio_experiment,
+    compare_experiment_reports,
+    LocalExperimentCatalog,
+)
+
+# 1. Define an experiment
+definition = StudioExperimentDefinition(
+    experiment_id="EXP-STUDIO-001",
+    name="Studio Tail Risk & Friction Audit",
+    description="Evaluates tail risk under 5bps and 10bps return drag and 30-day window truncation.",
+    dataset_id="NSE-60D-EQUITIES",
+    baseline_config={"confidence_level": 0.95, "annualization_factor": 252},
+    perturbation_specs=[
+        {"type": "return_friction", "experiment_id": "drag_5bps", "parameters": {"friction_bps": 5.0}},
+        {"type": "return_friction", "experiment_id": "drag_10bps", "parameters": {"friction_bps": 10.0}},
+        {"type": "lookback_window", "experiment_id": "window_30d", "parameters": {"lookback_window": 30}},
+    ],
+    target_ranking_metric="var_historical",
+    tags=["risk", "friction", "equities"],
+)
+
+# 2. Execute experiment workflow
+returns = [0.005, -0.012, 0.008, -0.003, 0.015, -0.021] # ... daily return series
+report = execute_studio_experiment(definition=definition, return_series=returns)
+
+# 3. Export reports
+json_str = report.to_json()
+md_summary = report.to_markdown()
+csv_table = report.to_csv()
+
+# 4. Catalog and index report
+catalog = LocalExperimentCatalog(catalog_dir="data/catalog")
+catalog.save_report(report)
+saved_report = catalog.get_report("EXP-STUDIO-001")
+all_reports = catalog.list_reports(status="completed", tag="risk")
+
+# 5. Compare against another experiment
+# comparison = compare_experiment_reports(report_a=report_1, report_b=report_2)
+```
+
+### Supported Metrics & Perturbations
+- **Baseline Metrics**: `annualized_volatility`, `volatility_daily`, `var_95`, `var_99`, `expected_shortfall_95`, `expected_shortfall_99`, `max_drawdown`, `asset_hhi`, `sector_hhi`.
+- **Perturbations**:
+  - `lookback_window`: Sample window truncation.
+  - `volatility_estimator`: Sample standard deviation vs RiskMetrics EWMA ($\lambda$).
+  - `return_friction`: Basis point drag deduction ($r_t' = r_t - c / 10000$).
+  - `liquidation_cost`: Turnover friction on portfolio valuation ($\text{Cost} = \text{MV} \times \tau \times c / 10000$).
+  - `correlation_stress`: Uniform stress toward crisis correlation target ($C_\alpha = (1-\alpha)C_0 + \alpha C_{\text{target}}$).
+  - `confidence_shift`: Confidence level perturbation from 95% to 99%.
+
+### Known Limitations & Deferred Features
+- **Dataset Storage Boundary**: Cryptographic SHA-256 hashes detect data tampering and drift, but cannot recreate lost input files.
+- **Cross-Platform Precision**: Minor divergence at $10^{-16}$ can occur across differing CPU architectures (ARM64 vs x86-64). A configurable tolerance $\epsilon = 10^{-6}$ is applied.
+- **Web UI & Live Feeds**: Phase 7 focuses exclusively on the quantitative engine, reporting, and catalog layer. Web dashboard and live market connectors are deferred to future phases.
+
+### Reports & Audits
+- Phase 6 Verification Report: [`docs/phase-6-verification-report.md`](file:///Users/vemanahemanthbabu/srujana_hackathon_2/docs/phase-6-verification-report.md).
+- Phase 7 Issue Review: [`docs/phase-7-issue-review.md`](file:///Users/vemanahemanthbabu/srujana_hackathon_2/docs/phase-7-issue-review.md).
+- Phase 7 Completion Report: [`docs/phase-7-report.md`](file:///Users/vemanahemanthbabu/srujana_hackathon_2/docs/phase-7-report.md).
 
 ---
 

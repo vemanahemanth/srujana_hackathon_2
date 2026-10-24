@@ -64,6 +64,14 @@ from fragility_engine.reproducibility import (
     run_reproducible_experiment,
     verify_experiment_invariants,
 )
+from fragility_engine.studio import (
+    ExperimentReport,
+    LocalExperimentCatalog,
+    StudioComparisonReport,
+    StudioExperimentDefinition,
+    compare_experiment_reports,
+    execute_studio_experiment,
+)
 
 __version__ = "0.1.0"
 __all__ = [
@@ -125,4 +133,11 @@ __all__ = [
     "run_reproducible_experiment",
     "DriftReport",
     "compare_experiment_runs",
+    # Experiment Studio & Reports Engine (Phase 7)
+    "StudioExperimentDefinition",
+    "ExperimentReport",
+    "StudioComparisonReport",
+    "LocalExperimentCatalog",
+    "execute_studio_experiment",
+    "compare_experiment_reports",
 ]
