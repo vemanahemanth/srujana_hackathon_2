@@ -300,7 +300,6 @@ class ParametricGaussianPlugin(ModelPlugin):
                 "volatility_annualized",
                 "annualized_volatility",
                 "var_95",
-                "var_historical",
                 "var_99",
                 "expected_shortfall",
                 "expected_shortfall_95",
@@ -311,6 +310,7 @@ class ParametricGaussianPlugin(ModelPlugin):
             limitations=(
                 "Assumes returns are strictly normally distributed with zero skewness and zero excess kurtosis.",
                 "Severely underestimates tail risk and extreme drawdowns in financial assets with fat tails.",
+                "Unconditional sample standard deviation does not capture time-varying volatility clustering or regime shifts.",
             ),
         )
 
@@ -375,7 +375,6 @@ class ParametricGaussianPlugin(ModelPlugin):
             "volatility_annualized": sigma_ann,
             "annualized_volatility": sigma_ann,
             "var_95": var_95,
-            "var_historical": var_95,
             "var_99": var_99,
             "expected_shortfall": es_95,
             "expected_shortfall_95": es_95,
@@ -398,13 +397,13 @@ class ParametricGaussianPlugin(ModelPlugin):
 
 
 class EWMAVolatilityPlugin(ModelPlugin):
-    """Built-in model implementing RiskMetrics EWMA volatility estimation."""
+    """Built-in model implementing RiskMetrics EWMA volatility and conditional Gaussian risk metrics."""
 
     def __init__(self) -> None:
         self._meta = PluginMetadata(
             plugin_id="builtin.ewma",
-            name="RiskMetrics EWMA Volatility",
-            description="Computes Exponentially Weighted Moving Average (EWMA) volatility with decay factor lambda.",
+            name="RiskMetrics EWMA Volatility & Conditional Gaussian Model",
+            description="Computes Exponentially Weighted Moving Average (EWMA) volatility with decay factor lambda and derives conditional normal VaR and Expected Shortfall.",
             plugin_version="1.0.0",
             api_version="1.0.0",
             supported_data_types=("return_series",),
@@ -413,15 +412,17 @@ class EWMAVolatilityPlugin(ModelPlugin):
                 "volatility_annualized",
                 "annualized_volatility",
                 "var_95",
-                "var_historical",
+                "var_99",
                 "expected_shortfall",
                 "expected_shortfall_95",
+                "expected_shortfall_99",
             ),
             required_config_keys=(),
-            optional_config_keys=("decay_factor", "annualization_factor"),
+            optional_config_keys=("decay_factor", "annualization_factor", "zero_mean"),
             limitations=(
-                "Assumes exponentially decaying memory with constant zero-mean assumption.",
-                "Conditioned heavily on recent volatility shocks without mean-reversion modeling.",
+                "Assumes zero or stationary mean with exponential decay memory (decay factor lambda) on squared returns.",
+                "Derives VaR and Expected Shortfall under conditional normal distribution assumptions; underestimates tail risk for heavy-tailed financial returns.",
+                "Conditioned heavily on recent volatility shocks without explicit mean-reversion modeling.",
             ),
         )
 
@@ -460,17 +461,24 @@ class EWMAVolatilityPlugin(ModelPlugin):
         arr = np.asarray(data, dtype=np.float64)
         decay = float(config.get("decay_factor", 0.94))
         annualization = float(config.get("annualization_factor", 252.0))
+        zero_mean = bool(config.get("zero_mean", False))
 
         t0 = time.perf_counter()
         sigma_ewma_ann = calculate_ewma_volatility(arr, decay_factor=decay, annualization_factor=annualization)
         sigma_ewma_daily = sigma_ewma_ann / math.sqrt(annualization)
 
-        # Normal approx using EWMA variance
+        # Standard normal quantiles and conditional normal VaR / ES
         z_95 = 1.6448536269514722
-        phi_95 = (1.0 / math.sqrt(2.0 * math.pi)) * math.exp(-0.5 * z_95 * z_95)
-        mu = float(np.mean(arr))
+        z_99 = 2.3263478740408408
+        inv_sqrt_2pi = 1.0 / math.sqrt(2.0 * math.pi)
+        phi_95 = inv_sqrt_2pi * math.exp(-0.5 * z_95 * z_95)
+        phi_99 = inv_sqrt_2pi * math.exp(-0.5 * z_99 * z_99)
+
+        mu = 0.0 if zero_mean else float(np.mean(arr))
         var_95 = -mu + z_95 * sigma_ewma_daily
+        var_99 = -mu + z_99 * sigma_ewma_daily
         es_95 = -mu + sigma_ewma_daily * (phi_95 / 0.05)
+        es_99 = -mu + sigma_ewma_daily * (phi_99 / 0.01)
 
         t_elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
@@ -479,9 +487,10 @@ class EWMAVolatilityPlugin(ModelPlugin):
             "volatility_annualized": sigma_ewma_ann,
             "annualized_volatility": sigma_ewma_ann,
             "var_95": var_95,
-            "var_historical": var_95,
+            "var_99": var_99,
             "expected_shortfall": es_95,
             "expected_shortfall_95": es_95,
+            "expected_shortfall_99": es_99,
         }
 
         return ModelExecutionResult(
@@ -492,7 +501,7 @@ class EWMAVolatilityPlugin(ModelPlugin):
             observations_used=len(arr),
             warnings=(),
             limitations=self.metadata.limitations,
-            metadata={"decay_factor": decay},
+            metadata={"decay_factor": decay, "zero_mean": zero_mean},
         )
 
 

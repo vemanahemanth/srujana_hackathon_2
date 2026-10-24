@@ -56,6 +56,17 @@ def _clean_md_cell(text: Any) -> str:
     return str(text).replace("|", "\\|").replace("\n", " ").strip()
 
 
+def format_metric_unit(metric: str) -> str:
+    """Return explicit financial unit representation for a metric."""
+    if "points" in metric:
+        return "points (0-10000)"
+    if "market_value" in metric:
+        return "currency"
+    if "ratio" in metric:
+        return "ratio"
+    return "decimal fraction"
+
+
 # ==============================================================================
 # D1. Benchmark Specification
 # ==============================================================================
@@ -125,6 +136,15 @@ class BenchmarkSpecification:
         if self.tolerance <= 0.0 or not math.isfinite(self.tolerance):
             raise ValueError(f"tolerance must be a positive finite float; got {self.tolerance}")
 
+        if self.target_ranking_metric and self.metrics_to_compare:
+            if self.target_ranking_metric not in self.metrics_to_compare:
+                if self.target_ranking_metric == "var_95" and "var_95" not in self.metrics_to_compare:
+                    object.__setattr__(self, "target_ranking_metric", None)
+                else:
+                    raise ValueError(
+                        f"target_ranking_metric '{self.target_ranking_metric}' must be included in metrics_to_compare: {self.metrics_to_compare}"
+                    )
+
         if "confidence_level" in self.baseline_config:
             try:
                 conf = float(self.baseline_config["confidence_level"])
@@ -132,6 +152,44 @@ class BenchmarkSpecification:
                 raise ValueError(f"confidence_level must be numeric float: {exc}") from exc
             if not (0.0 < conf < 1.0):
                 raise ValueError(f"confidence_level must be in (0, 1); got {conf}")
+
+        # Validate perturbation specifications up-front
+        for idx, p_spec in enumerate(self.perturbation_specs, start=1):
+            if not isinstance(p_spec, dict):
+                raise TypeError(f"Perturbation spec at index {idx} must be a dictionary; got {type(p_spec).__name__}")
+            p_type = p_spec.get("type", "")
+            if p_type not in (
+                "return_friction", "friction",
+                "lookback_window", "lookback",
+                "volatility_estimator_ewma", "volatility_estimator"
+            ):
+                raise ValueError(f"Unsupported perturbation type '{p_type}' in perturbation spec {idx}")
+            params = p_spec.get("parameters", p_spec)
+            if p_type in ("return_friction", "friction"):
+                if "friction_bps" in params:
+                    try:
+                        fbps = float(params["friction_bps"])
+                        if not math.isfinite(fbps) or fbps < 0.0:
+                            raise ValueError(f"friction_bps must be finite and >= 0.0; got {fbps}")
+                    except (ValueError, TypeError) as exc:
+                        raise ValueError(f"Invalid friction_bps in perturbation spec {idx}: {exc}") from exc
+            elif p_type in ("lookback_window", "lookback"):
+                p_win = params.get("perturbed_window") or params.get("lookback_window")
+                if p_win is not None:
+                    try:
+                        i_win = int(p_win)
+                        if i_win < 2:
+                            raise ValueError(f"lookback window must be an integer >= 2; got {i_win}")
+                    except (ValueError, TypeError) as exc:
+                        raise ValueError(f"Invalid lookback window in perturbation spec {idx}: {exc}") from exc
+            elif p_type in ("volatility_estimator_ewma", "volatility_estimator"):
+                if "decay_factor" in params:
+                    try:
+                        decay = float(params["decay_factor"])
+                        if not math.isfinite(decay) or not (0.0 < decay < 1.0):
+                            raise ValueError(f"decay_factor must be strictly between 0 and 1; got {decay}")
+                    except (ValueError, TypeError) as exc:
+                        raise ValueError(f"Invalid decay_factor in perturbation spec {idx}: {exc}") from exc
 
     def compute_config_hash(self) -> str:
         """Compute deterministic SHA-256 fingerprint over mathematical calculation parameters."""
@@ -241,6 +299,8 @@ class ModelRankingEntry:
         model_name: Human-readable model name.
         metric_name: Evaluated metric name.
         metric_value: Numerical metric value used for ranking.
+        unit: Measurement unit (e.g. 'decimal fraction', 'points (0-10000)').
+        interpretation: Meaning of rank ordering (e.g. 'lower_estimated_risk').
         tied: Whether this model tied with an adjacent model within tolerance.
         ranking_direction: Stated direction ('lower_is_better' or 'higher_is_better').
     """
@@ -250,8 +310,10 @@ class ModelRankingEntry:
     model_name: str
     metric_name: str
     metric_value: float
-    tied: bool
-    ranking_direction: str
+    unit: str = "decimal fraction"
+    interpretation: str = "lower_estimated_risk"
+    tied: bool = False
+    ranking_direction: str = "lower_is_better"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -260,6 +322,8 @@ class ModelRankingEntry:
             "model_name": self.model_name,
             "metric_name": self.metric_name,
             "metric_value": float(self.metric_value),
+            "unit": self.unit,
+            "interpretation": self.interpretation,
             "tied": self.tied,
             "ranking_direction": self.ranking_direction,
         }
@@ -305,6 +369,15 @@ class BenchmarkReport:
     rankings: Tuple[ModelRankingEntry, ...]
     unranked_models: Tuple[Dict[str, Any], ...]
     manifest: Mapping[str, Any]
+    ranking_metric: Optional[str] = None
+    ranking_direction: Optional[str] = None
+    ranking_interpretation: Optional[str] = None
+    ranking_disclaimer: str = (
+        "RANKING DISCLAIMER: Model rankings reflect ordering of estimated risk metrics on the provided sample "
+        "data under specified model assumptions. A lower estimated Value-at-Risk or Volatility reflects a lower "
+        "risk estimate, NOT a superior, more accurate, or better-calibrated risk model. Out-of-sample backtesting "
+        "against realized outcomes is required to assess forecast accuracy."
+    )
     warnings: Tuple[str, ...] = field(default_factory=tuple)
     limitations: Tuple[str, ...] = field(default_factory=tuple)
     tags: Tuple[str, ...] = field(default_factory=tuple)
@@ -327,6 +400,10 @@ class BenchmarkReport:
             "rankings": [r.to_dict() for r in self.rankings],
             "unranked_models": [dict(u) for u in self.unranked_models],
             "manifest": dict(self.manifest),
+            "ranking_metric": self.ranking_metric,
+            "ranking_direction": self.ranking_direction,
+            "ranking_interpretation": self.ranking_interpretation,
+            "ranking_disclaimer": self.ranking_disclaimer,
             "warnings": list(self.warnings),
             "limitations": list(self.limitations),
             "tags": list(self.tags),
@@ -370,6 +447,8 @@ class BenchmarkReport:
                 model_name=r["model_name"],
                 metric_name=r["metric_name"],
                 metric_value=float(r["metric_value"]),
+                unit=r.get("unit", "decimal fraction"),
+                interpretation=r.get("interpretation", "lower_estimated_risk"),
                 tied=bool(r.get("tied", False)),
                 ranking_direction=r.get("ranking_direction", "lower_is_better"),
             )
@@ -392,6 +471,15 @@ class BenchmarkReport:
             rankings=rankings,
             unranked_models=tuple(data.get("unranked_models", ())),
             manifest=dict(data.get("manifest", {})),
+            ranking_metric=data.get("ranking_metric"),
+            ranking_direction=data.get("ranking_direction"),
+            ranking_interpretation=data.get("ranking_interpretation"),
+            ranking_disclaimer=str(data.get("ranking_disclaimer", (
+                "RANKING DISCLAIMER: Model rankings reflect ordering of estimated risk metrics on the provided sample "
+                "data under specified model assumptions. A lower estimated Value-at-Risk or Volatility reflects a lower "
+                "risk estimate, NOT a superior, more accurate, or better-calibrated risk model. Out-of-sample backtesting "
+                "against realized outcomes is required to assess forecast accuracy."
+            ))),
             warnings=tuple(data.get("warnings", ())),
             limitations=tuple(data.get("limitations", ())),
             tags=tuple(data.get("tags", ())),
@@ -433,16 +521,21 @@ class BenchmarkReport:
             lines.append("*No comparative rankings computed.*")
         else:
             first_rank = self.rankings[0]
+            interp = self.ranking_interpretation or first_rank.interpretation
             lines.extend([
-                f"**Target Metric:** `{first_rank.metric_name}` ({first_rank.ranking_direction.replace('_', ' ')})  ",
+                f"**Target Metric:** `{first_rank.metric_name}`  ",
+                f"**Measurement Unit:** `{first_rank.unit}`  ",
+                f"**Ranking Direction:** `{first_rank.ranking_direction}` ({interp})  ",
                 "",
-                "| Rank | Model Plugin | Model Name | Metric Value | Tied |",
-                "| :---: | :--- | :--- | :---: | :---: |",
+                f"> **Model Comparison Disclaimer:** {self.ranking_disclaimer}",
+                "",
+                "| Rank | Model Plugin | Model Name | Metric Value | Unit | Interpretation | Tied |",
+                "| :---: | :--- | :--- | :---: | :--- | :--- | :---: |",
             ])
             for r in self.rankings:
                 tied_str = "Yes" if r.tied else "No"
                 lines.append(
-                    f"| {r.rank} | `{r.plugin_id}` | {r.model_name} | {r.metric_value:.6f} | {tied_str} |"
+                    f"| {r.rank} | `{r.plugin_id}` | {r.model_name} | {r.metric_value:.6f} | {r.unit} | {r.interpretation} | {tied_str} |"
                 )
 
         if self.unranked_models:
@@ -537,6 +630,7 @@ class BenchmarkReport:
             "model_name",
             "status",
             "metric_name",
+            "unit",
             "baseline_value",
             "perturbation_id",
             "stressed_value",
@@ -555,6 +649,7 @@ class BenchmarkReport:
                         m.model_name,
                         m.status,
                         mk,
+                        format_metric_unit(mk),
                         m.baseline_metrics[mk],
                         "",
                         "",
@@ -574,6 +669,7 @@ class BenchmarkReport:
                         m.model_name,
                         m.status,
                         mk,
+                        format_metric_unit(mk),
                         base_val,
                         pk,
                         stressed_val,
@@ -825,6 +921,12 @@ def execute_model_benchmark(
                 if abs(val - prev_val) > spec.tolerance:
                     current_rank = idx + 1
 
+            target_unit = format_metric_unit(target_m)
+            interp = (
+                "lower_estimated_risk"
+                if spec.ranking_direction == "lower_is_better"
+                else "higher_estimated_risk"
+            )
             rankings.append(
                 ModelRankingEntry(
                     rank=current_rank,
@@ -832,18 +934,31 @@ def execute_model_benchmark(
                     model_name=m.model_name,
                     metric_name=target_m,
                     metric_value=val,
+                    unit=target_unit,
+                    interpretation=interp,
                     tied=is_tied,
                     ranking_direction=spec.ranking_direction,
                 )
             )
 
-    # 4. Generate Output Fingerprint & Manifest
+    # 4. Generate Output Fingerprint & Manifest covering baseline metrics, perturbations, and rankings
     manifest_results = {
-        m.plugin_id: {
-            "status": m.status,
-            "metrics": dict(m.baseline_metrics),
-        }
-        for m in model_entries
+        "models": {
+            m.plugin_id: {
+                "status": m.status,
+                "baseline_metrics": {k: float(v) for k, v in m.baseline_metrics.items()},
+                "perturbation_metrics": {
+                    pk: {mk: float(mv) for mk, mv in pdict.items()}
+                    for pk, pdict in m.perturbation_metrics.items()
+                },
+                "perturbation_deltas": {
+                    pk: {mk: float(mv) for mk, mv in pdict.items()}
+                    for pk, pdict in m.perturbation_deltas.items()
+                },
+            }
+            for m in model_entries
+        },
+        "rankings": [r.to_dict() for r in rankings],
     }
     output_fp = compute_canonical_hash(manifest_results)
 
@@ -868,6 +983,14 @@ def execute_model_benchmark(
     elif any(m.status != "completed" for m in model_entries) or warnings:
         overall_status = "completed_with_warnings"
 
+    ranking_interp = None
+    if spec.target_ranking_metric:
+        ranking_interp = (
+            "lower_estimated_risk"
+            if spec.ranking_direction == "lower_is_better"
+            else "higher_estimated_risk"
+        )
+
     return BenchmarkReport(
         benchmark_id=spec.benchmark_id,
         name=spec.name,
@@ -884,6 +1007,9 @@ def execute_model_benchmark(
         rankings=tuple(rankings),
         unranked_models=tuple(unranked_models),
         manifest=manifest_dict,
+        ranking_metric=spec.target_ranking_metric,
+        ranking_direction=spec.ranking_direction if spec.target_ranking_metric else None,
+        ranking_interpretation=ranking_interp,
         warnings=tuple(warnings),
         limitations=tuple(limitations),
         tags=spec.tags,

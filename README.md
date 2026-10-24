@@ -77,13 +77,17 @@ Located in `backend/fragility_engine/plugins.py` and `backend/fragility_engine/b
    - **Fair Comparison Guarantee**: Compares models evaluated on identical sample windows and baseline configurations. Incompatible models (e.g. Portfolio models applied to Return Series) are isolated with `incompatible` status.
    - **Robustness Perturbation Testing**: Runs models through parameter shocks (return friction drag, lookback window alterations, decay factor shifts) and records baseline vs perturbed metric deltas.
    - **Post-Execution Invariant Verification**: Verifies mathematical properties across all outputs via `verify_experiment_invariants`.
-   - **Directional Ranking**: Transparent ranking supporting `lower_is_better` (for risk/loss metrics: VaR, ES, Volatility, Drawdown) and `higher_is_better` (for return/diversification metrics). Detects and reports ties explicitly.
-   - **Fault Isolation**: Caught exceptions in buggy plugins are isolated without crashing the benchmark or corrupting valid results.
+   - **Directional Risk Rankings & Semantics**: Transparent ranking supporting `lower_is_better` and `higher_is_better`.
+     - **Risk Magnitude vs Model Quality**: Lower estimated Value-at-Risk or Volatility reflects a lower risk estimate on the sample data, **not** a superior, more robust, or better-calibrated risk model. Model forecast accuracy requires out-of-sample backtesting against realized outcomes.
+     - **Deterministic Tie Handling**: Detects and reports numerical ties within configurable tolerance $\epsilon$ (default $10^{-6}$).
+     - **Explicit Measurement Units & Interpretations**: Every ranking records `unit` (e.g. `'decimal fraction'`, `'points (0-10000)'`, `'currency'`) and `interpretation` (e.g. `'lower_estimated_risk'`).
+     - **Exclusion of Incomparable Models**: Incompatible models (e.g. evaluating portfolio concentration on return series) and failed plugins are explicitly excluded from rankings with recorded diagnostic reasons.
+   - **Fault Isolation**: Caught exceptions in plugins are captured without crashing the benchmark or corrupting valid results.
 
 4. **Multi-Format Publication Reports (`BenchmarkReport`)**:
-   - **JSON (`.to_json()`)**: Machine-readable RFC 8259 canonical format with embedded reproducibility manifests and cryptographic provenance hashes.
-   - **Markdown (`.to_markdown()`)**: Publication-grade tables with metric grids, directional rankings, diagnostic warnings, and limitations.
-   - **CSV (`.to_csv()`)**: Standardized RFC 4180 grid format for downstream analysis in spreadsheets or data science workflows.
+   - **JSON (`.to_json()`)**: Machine-readable RFC 8259 canonical format with embedded reproducibility manifests, cryptographic provenance hashes, ranking disclaimers, and unit annotations.
+   - **Markdown (`.to_markdown()`)**: Publication-grade tables with metric comparison grids, directional rankings with units and interpretations, model comparison disclaimers, diagnostic warnings, and limitations.
+   - **CSV (`.to_csv()`)**: Standardized tabular format with explicit `unit` column for downstream analysis in spreadsheets or data science workflows.
 
 5. **Security & Containment Boundaries**:
    - Plugins execute in-process with application permissions. External code auto-execution, dynamic `pip` installation, and remote imports are prohibited.
