@@ -1,0 +1,73 @@
+{
+  "portfolio_id": "nse_10l_illustrative",
+  "name": "Illustrative ₹10 Lakh NSE Portfolio",
+  "currency": "INR",
+  "metadata": {
+    "target_value": 1000000.0,
+    "market": "NSE",
+    "is_sample": true,
+    "disclaimer": "ILLUSTRATIVE ONLY. All prices, quantities, and weights are deterministic test fixtures and assumptions for model stress testing. They do not represent live market data, actual trades, or investment recommendations."
+  },
+  "holdings": [
+    {
+      "asset_id": "NSE:HDFCBANK",
+      "quantity": 100.0,
+      "price": 1600.0,
+      "sector": "Banking"
+    },
+    {
+      "asset_id": "NSE:ICICIBANK",
+      "quantity": 80.0,
+      "price": 1000.0,
+      "sector": "Banking"
+    },
+    {
+      "asset_id": "NSE:SBIN",
+      "quantity": 100.0,
+      "price": 600.0,
+      "sector": "Banking"
+    },
+    {
+      "asset_id": "NSE:INFY",
+      "quantity": 80.0,
+      "price": 1500.0,
+      "sector": "Information Technology"
+    },
+    {
+      "asset_id": "NSE:TCS",
+      "quantity": 20.0,
+      "price": 4000.0,
+      "sector": "Information Technology"
+    },
+    {
+      "asset_id": "NSE:RELIANCE",
+      "quantity": 50.0,
+      "price": 3000.0,
+      "sector": "Energy"
+    },
+    {
+      "asset_id": "NSE:ITC",
+      "quantity": 200.0,
+      "price": 450.0,
+      "sector": "FMCG"
+    },
+    {
+      "asset_id": "NSE:HINDUNILVR",
+      "quantity": 25.0,
+      "price": 2400.0,
+      "sector": "FMCG"
+    },
+    {
+      "asset_id": "NSE:SUNPHARMA",
+      "quantity": 80.0,
+      "price": 1250.0,
+      "sector": "Healthcare"
+    },
+    {
+      "asset_id": "NSE:LT",
+      "quantity": 25.0,
+      "price": 4000.0,
+      "sector": "Industrials"
+    }
+  ]
+}

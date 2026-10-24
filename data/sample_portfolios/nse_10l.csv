@@ -1,0 +1,11 @@
+asset_id,quantity,price,sector
+NSE:HDFCBANK,100,1600.0,Banking
+NSE:ICICIBANK,80,1000.0,Banking
+NSE:SBIN,100,600.0,Banking
+NSE:INFY,80,1500.0,Information Technology
+NSE:TCS,20,4000.0,Information Technology
+NSE:RELIANCE,50,3000.0,Energy
+NSE:ITC,200,450.0,FMCG
+NSE:HINDUNILVR,25,2400.0,FMCG
+NSE:SUNPHARMA,80,1250.0,Healthcare
+NSE:LT,25,4000.0,Industrials
