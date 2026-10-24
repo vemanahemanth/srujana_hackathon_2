@@ -39,6 +39,7 @@ from fragility_engine.fragility import (
     FragilityExperimentResult,
     MetricSensitivityRanking,
     PerturbationImpact,
+    calculate_ewma_conditional_variances,
     calculate_ewma_volatility,
     calculate_portfolio_liquidation_shock,
     compute_changes,
@@ -50,7 +51,6 @@ from fragility_engine.fragility import (
     run_return_friction_perturbation,
     run_volatility_estimator_perturbation,
 )
-
 from fragility_engine.reproducibility import (
     DriftReport,
     ExperimentSpecification,
@@ -73,22 +73,33 @@ from fragility_engine.studio import (
     execute_studio_experiment,
 )
 from fragility_engine.plugins import (
-    ModelPlugin,
-    PluginMetadata,
-    ModelExecutionResult,
-    PluginRegistry,
-    get_default_registry,
-    HistoricalSimulationPlugin,
-    ParametricGaussianPlugin,
     EWMAVolatilityPlugin,
+    HistoricalSimulationPlugin,
+    ModelExecutionResult,
+    ModelPlugin,
+    ParametricGaussianPlugin,
+    PluginMetadata,
+    PluginRegistry,
     PortfolioConcentrationPlugin,
+    get_default_registry,
 )
 from fragility_engine.benchmarks import (
+    BenchmarkReport,
     BenchmarkSpecification,
     ModelBenchmarkEntry,
     ModelRankingEntry,
-    BenchmarkReport,
     execute_model_benchmark,
+)
+from fragility_engine.backtest import (
+    BacktestReport,
+    ChristoffersenTestResult,
+    KupiecTestResult,
+    VaRBreachEvaluation,
+    VaRForecast,
+    backtest_model_rolling,
+    calculate_christoffersen_test,
+    calculate_kupiec_pof_test,
+    evaluate_var_breaches,
 )
 
 __version__ = "0.1.0"
@@ -132,6 +143,7 @@ __all__ = [
     "compute_changes",
     "run_lookback_perturbation",
     "calculate_ewma_volatility",
+    "calculate_ewma_conditional_variances",
     "run_volatility_estimator_perturbation",
     "run_return_friction_perturbation",
     "calculate_portfolio_liquidation_shock",
@@ -173,4 +185,14 @@ __all__ = [
     "ModelRankingEntry",
     "BenchmarkReport",
     "execute_model_benchmark",
+    # Out-of-Sample Backtesting & Forecast Integrity (Phase 8.2)
+    "VaRForecast",
+    "VaRBreachEvaluation",
+    "KupiecTestResult",
+    "ChristoffersenTestResult",
+    "BacktestReport",
+    "evaluate_var_breaches",
+    "calculate_kupiec_pof_test",
+    "calculate_christoffersen_test",
+    "backtest_model_rolling",
 ]

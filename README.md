@@ -44,13 +44,36 @@ pip install -e backend
 
 ### 3. Run Automated Tests
 ```bash
-# Execute full unit test suite with branch coverage (323 tests, 92% coverage)
+# Execute full unit test suite with branch coverage (358 tests, 92% coverage)
 .venv/bin/python -m pytest backend/tests/ -v --cov=fragility_engine --cov-report=term-missing --cov-branch
 ```
 
 ---
 
-## Model Plugin System & Benchmarking Laboratory (Phase 8)
+## Out-of-Sample VaR Backtesting & Statistical Validation (Phase 8.2)
+
+Located in `backend/fragility_engine/backtest.py`:
+- **Quantitative Forecast Integrity**: Formally establishes forecast origin times ($t$), information sets ($\mathcal{F}_t$), forecast horizons ($h=1$), and realized outcome targets ($t+1$).
+- **Elimination of Look-Ahead Bias**:
+  - `BenchmarkSpecification` and `BenchmarkReport` encode `evaluation_mode: str = "in_sample_descriptive"` to explicitly differentiate fitted in-sample calculations from predictive forecasts.
+  - EWMA volatility recurrence supports explicit, causal `initial_variance` and sequential variance evaluation (`calculate_ewma_conditional_variances`) guaranteeing that future returns $R_{t+1 \dots T}$ cannot alter historical variance estimates $\sigma_0^2 \dots \sigma_t^2$.
+- **Canonical Loss and Breach Convention**:
+  - Loss defined as $L_{t+1} = -R_{t+1}$.
+  - Strict breach indicator: $I_{t+1} = \mathbf{1}[L_{t+1} > \text{VaR}_{\alpha, t}]$, with equality ($L == \text{VaR}$) treated strictly as non-breach.
+- **Kupiec Unconditional Coverage Test (POF)**:
+  - Exact likelihood ratio test statistic: $LR_{POF} = 2 [ x \ln(\widehat{p} / p_0) + (N - x) \ln((1 - \widehat{p}) / (1 - p_0)) ] \sim \chi^2_1$.
+  - Exact survival p-value via `math.erfc(math.sqrt(LR / 2.0))`.
+  - Boundary handling for $x=0$ ($LR = -2 N \ln(1 - p_0)$) and $x=N$ ($LR = -2 N \ln(p_0)$) preventing numerical division-by-zero or $\ln(0)$ crashes.
+- **Christoffersen Independence & Conditional Coverage Tests**:
+  - Evaluates first-order Markov chain transitions ($n_{00}, n_{01}, n_{10}, n_{11}$) to detect breach clustering ($LR_{ind} \sim \chi^2_1$).
+  - Combined Conditional Coverage: $LR_{CC} = LR_{POF} + LR_{ind} \sim \chi^2_2$, with exact closed-form p-value $\exp(-LR_{CC} / 2.0)$.
+- **Automated Rolling Walk-Forward Backtester (`backtest_model_rolling`)**:
+  - Automatically executes rolling out-of-sample backtests across registered model plugins.
+  - Trains exclusively on $[t - W + 1 : t + 1]$, forecasts $t+1$, evaluates against $-R_{t+1}$, and outputs `BacktestReport` with full cryptographic SHA-256 manifest.
+
+---
+
+## Model Plugin System & Benchmarking Laboratory (Phase 8 & Phase 8.1)
 
 Located in `backend/fragility_engine/plugins.py` and `backend/fragility_engine/benchmarks.py`:
 - **Product Goal**: An assumption-aware quantitative model benchmarking laboratory and typed plugin architecture. Allows researchers and risk managers to evaluate competing financial risk models, test sensitivity to assumptions, validate outputs, and rank models under identical market data and shock conditions.

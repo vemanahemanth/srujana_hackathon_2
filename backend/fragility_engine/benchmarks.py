@@ -104,6 +104,7 @@ class BenchmarkSpecification:
     perturbation_specs: Tuple[Mapping[str, Any], ...] = ()
     target_ranking_metric: Optional[str] = "var_95"
     ranking_direction: str = "lower_is_better"
+    evaluation_mode: str = "in_sample_descriptive"
     tolerance: float = 1e-6
     schema_version: str = "1.0.0"
     algorithm_version: str = "1.0.0"
@@ -132,6 +133,11 @@ class BenchmarkSpecification:
 
         if self.ranking_direction not in ("lower_is_better", "higher_is_better"):
             raise ValueError(f"ranking_direction must be 'lower_is_better' or 'higher_is_better'; got '{self.ranking_direction}'")
+
+        if self.evaluation_mode not in ("in_sample_descriptive", "out_of_sample_walk_forward"):
+            raise ValueError(
+                f"evaluation_mode must be 'in_sample_descriptive' or 'out_of_sample_walk_forward'; got '{self.evaluation_mode}'"
+            )
 
         if self.tolerance <= 0.0 or not math.isfinite(self.tolerance):
             raise ValueError(f"tolerance must be a positive finite float; got {self.tolerance}")
@@ -203,6 +209,7 @@ class BenchmarkSpecification:
             "perturbation_specs": list(self.perturbation_specs),
             "target_ranking_metric": self.target_ranking_metric,
             "ranking_direction": self.ranking_direction,
+            "evaluation_mode": self.evaluation_mode,
             "tolerance": self.tolerance,
             "random_seed": self.random_seed,
         }
@@ -221,6 +228,7 @@ class BenchmarkSpecification:
             "perturbation_specs": [dict(p) for p in self.perturbation_specs],
             "target_ranking_metric": self.target_ranking_metric,
             "ranking_direction": self.ranking_direction,
+            "evaluation_mode": self.evaluation_mode,
             "tolerance": self.tolerance,
             "schema_version": self.schema_version,
             "algorithm_version": self.algorithm_version,
@@ -378,6 +386,7 @@ class BenchmarkReport:
         "risk estimate, NOT a superior, more accurate, or better-calibrated risk model. Out-of-sample backtesting "
         "against realized outcomes is required to assess forecast accuracy."
     )
+    evaluation_mode: str = "in_sample_descriptive"
     warnings: Tuple[str, ...] = field(default_factory=tuple)
     limitations: Tuple[str, ...] = field(default_factory=tuple)
     tags: Tuple[str, ...] = field(default_factory=tuple)
@@ -404,6 +413,7 @@ class BenchmarkReport:
             "ranking_direction": self.ranking_direction,
             "ranking_interpretation": self.ranking_interpretation,
             "ranking_disclaimer": self.ranking_disclaimer,
+            "evaluation_mode": self.evaluation_mode,
             "warnings": list(self.warnings),
             "limitations": list(self.limitations),
             "tags": list(self.tags),
@@ -480,6 +490,7 @@ class BenchmarkReport:
                 "risk estimate, NOT a superior, more accurate, or better-calibrated risk model. Out-of-sample backtesting "
                 "against realized outcomes is required to assess forecast accuracy."
             ))),
+            evaluation_mode=str(data.get("evaluation_mode", "in_sample_descriptive")),
             warnings=tuple(data.get("warnings", ())),
             limitations=tuple(data.get("limitations", ())),
             tags=tuple(data.get("tags", ())),
@@ -498,6 +509,7 @@ class BenchmarkReport:
             f"**Benchmark ID:** `{self.benchmark_id}`  ",
             f"**Status:** `{self.status.upper()}`  ",
             f"**Dataset ID:** `{self.dataset_id}`  ",
+            f"**Evaluation Mode:** `{self.evaluation_mode}`  ",
             f"**Generated At:** `{self.created_at}`  ",
             f"**Schema Version:** `{self.schema_version}`  ",
             "",
@@ -1010,6 +1022,7 @@ def execute_model_benchmark(
         ranking_metric=spec.target_ranking_metric,
         ranking_direction=spec.ranking_direction if spec.target_ranking_metric else None,
         ranking_interpretation=ranking_interp,
+        evaluation_mode=spec.evaluation_mode,
         warnings=tuple(warnings),
         limitations=tuple(limitations),
         tags=spec.tags,

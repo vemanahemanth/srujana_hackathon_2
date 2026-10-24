@@ -299,6 +299,7 @@ def calculate_ewma_volatility(
     returns: Sequence[float] | np.ndarray,
     decay_factor: float = 0.94,
     annualization_factor: float = 252.0,
+    initial_variance: Optional[float] = None,
 ) -> float:
     """Calculate annualized Exponentially Weighted Moving Average (EWMA) volatility.
 
@@ -307,12 +308,14 @@ def calculate_ewma_volatility(
         sigma_annual = sqrt(sigma_T^2) * sqrt(annualization_factor)
 
     Initialization:
-        sigma_0^2 = sum(r_i^2) / N  (uncentered sample variance)
+        If initial_variance is provided: sigma_0^2 = initial_variance (strictly causal).
+        Else: sigma_0^2 = sum(r_i^2) / N (uncentered sample variance of input slice).
 
     Args:
         returns: Sequence of periodic returns.
         decay_factor: Lambda parameter in range (0.0, 1.0), standard default 0.94.
         annualization_factor: Annualization multiplier (default 252.0).
+        initial_variance: Optional positive float representing prior variance at origin.
 
     Returns:
         Annualized EWMA volatility as a float.
@@ -329,17 +332,78 @@ def calculate_ewma_volatility(
     if not math.isfinite(lam) or lam <= 0.0 or lam >= 1.0:
         raise ValueError(f"decay_factor must be strictly between 0.0 and 1.0; got {decay_factor!r}")
 
+    if initial_variance is not None:
+        try:
+            init_var = float(initial_variance)
+        except (ValueError, TypeError) as exc:
+            raise ValueError(f"initial_variance must be a finite float: {exc}") from exc
+        if not math.isfinite(init_var) or init_var <= 0.0:
+            raise ValueError(f"initial_variance must be strictly positive and finite; got {initial_variance!r}")
+        var_t = init_var
+    else:
+        # Check finite
+        if not np.all(np.isfinite(arr)):
+            raise ValueError("Returns must contain strictly finite values")
+        # Initial variance estimate from sample slice
+        var_t = float(np.mean(arr ** 2))
+
     # Check finite
     if not np.all(np.isfinite(arr)):
         raise ValueError("Returns must contain strictly finite values")
 
-    # Initial variance estimate
-    var_t = float(np.mean(arr ** 2))
     for r in arr:
         var_t = lam * var_t + (1.0 - lam) * float(r ** 2)
 
     daily_vol = math.sqrt(var_t)
     return daily_vol * math.sqrt(annualization_factor)
+
+
+def calculate_ewma_conditional_variances(
+    returns: Sequence[float] | np.ndarray,
+    decay_factor: float = 0.94,
+    initial_variance: Optional[float] = None,
+) -> np.ndarray:
+    """Calculate step-by-step conditional variance series sigma_t^2 under EWMA.
+
+    At each observation t, sigma_t^2 is conditional on r_1, ..., r_t.
+    The 1-step-ahead forecast for period t+1 formed at time t is:
+        sigma_{t+1|t}^2 = sigma_t^2
+
+    Args:
+        returns: Sequence of periodic returns.
+        decay_factor: Exponential decay parameter lambda in (0, 1).
+        initial_variance: Optional prior variance sigma_0^2. If None, initialized
+                          using the first observation r_0^2 (strictly causal).
+
+    Returns:
+        1D numpy array of conditional daily variances of length len(returns).
+    """
+    if returns is None:
+        raise TypeError("returns sequence cannot be None")
+    arr = np.asarray(returns, dtype=np.float64)
+    if len(arr) < 1:
+        raise ValueError("returns sequence cannot be empty")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError("returns sequence contains non-finite values")
+
+    lam = float(decay_factor)
+    if not math.isfinite(lam) or lam <= 0.0 or lam >= 1.0:
+        raise ValueError(f"decay_factor must be strictly between 0.0 and 1.0; got {decay_factor!r}")
+
+    if initial_variance is not None:
+        init_v = float(initial_variance)
+        if not math.isfinite(init_v) or init_v <= 0.0:
+            raise ValueError(f"initial_variance must be positive and finite; got {initial_variance!r}")
+        var_curr = init_v
+    else:
+        var_curr = float(arr[0] ** 2) if arr[0] != 0.0 else 1e-6
+
+    var_series = np.empty(len(arr), dtype=np.float64)
+    for idx, r in enumerate(arr):
+        var_curr = lam * var_curr + (1.0 - lam) * float(r ** 2)
+        var_series[idx] = var_curr
+
+    return var_series
 
 
 def run_volatility_estimator_perturbation(

@@ -456,15 +456,27 @@ class EWMAVolatilityPlugin(ModelPlugin):
             if ann <= 0.0 or not math.isfinite(ann):
                 raise ValueError(f"annualization_factor must be > 0; got {ann}")
 
+        if "initial_variance" in config and config["initial_variance"] is not None:
+            init_v = float(config["initial_variance"])
+            if not math.isfinite(init_v) or init_v <= 0.0:
+                raise ValueError(f"initial_variance must be > 0; got {init_v}")
+
     def execute(self, data: Any, config: Mapping[str, Any]) -> ModelExecutionResult:
         self.validate_input(data, config)
         arr = np.asarray(data, dtype=np.float64)
         decay = float(config.get("decay_factor", 0.94))
         annualization = float(config.get("annualization_factor", 252.0))
         zero_mean = bool(config.get("zero_mean", False))
+        init_var = config.get("initial_variance")
+        init_var_val = float(init_var) if init_var is not None else None
 
         t0 = time.perf_counter()
-        sigma_ewma_ann = calculate_ewma_volatility(arr, decay_factor=decay, annualization_factor=annualization)
+        sigma_ewma_ann = calculate_ewma_volatility(
+            arr,
+            decay_factor=decay,
+            annualization_factor=annualization,
+            initial_variance=init_var_val,
+        )
         sigma_ewma_daily = sigma_ewma_ann / math.sqrt(annualization)
 
         # Standard normal quantiles and conditional normal VaR / ES
@@ -501,7 +513,7 @@ class EWMAVolatilityPlugin(ModelPlugin):
             observations_used=len(arr),
             warnings=(),
             limitations=self.metadata.limitations,
-            metadata={"decay_factor": decay, "zero_mean": zero_mean},
+            metadata={"decay_factor": decay, "zero_mean": zero_mean, "initial_variance": init_var_val},
         )
 
 
