@@ -44,11 +44,48 @@ pip install -e backend
 
 ### 3. Run Automated Tests
 ```bash
-# Execute full unit test suite with branch coverage (212 tests, 92% coverage)
-pytest backend/tests/ -v --cov=fragility_engine --cov-report=term-missing --cov-branch
+# Execute full unit test suite with branch coverage (250 tests, 92% coverage)
+.venv/bin/python -m pytest backend/tests/ -v --cov=fragility_engine --cov-report=term-missing --cov-branch
 ```
 
 ---
+
+## Validation & Reproducibility Lab (Phase 6)
+
+Located in `backend/fragility_engine/reproducibility.py`:
+- **Cryptographic Fingerprinting (`compute_canonical_hash`, `compute_dataset_hash`)**:
+  - Deterministic SHA-256 fingerprinting for datasets, calculation configurations, and execution results.
+  - Implements canonical JSON serialization (`canonical_json_dumps`): alphabetically sorted dictionary keys, IEEE 754 float precision, strict rejection of non-finite numbers (`NaN`, `Inf`), and compact representation.
+  - Separates mathematical calculation parameters from informational metadata (`created_at`, `description`, `metadata`, `dataset_provenance`) so timestamps and user notes never corrupt calculation fingerprints.
+- **Experiment Specification (`ExperimentSpecification`)**:
+  - Fully typed, immutable domain model specifying `experiment_id`, `name`, `dataset_id`, `baseline_config`, `perturbation_specs`, `schema_version`, `algorithm_version`, `random_seed`, and `date_range`.
+  - Validates baseline parameters (e.g. `confidence_level` $\in (0, 1)$) and rejects unsupported perturbation types.
+- **Reproducible Experiment Runner (`run_reproducible_experiment`)**:
+  - Orchestrates: (1) Dataset and configuration fingerprinting; (2) Baseline risk and concentration calculations; (3) Execution of configured perturbations; (4) Independent mathematical invariant validation; (5) Manifest generation with execution environment capture.
+  - Supports 1D return series, 2D multivariate return matrices, and `Portfolio` instances.
+- **Reproducibility Manifest (`ReproducibilityManifest`)**:
+  - Immutable audit artifact capturing `input_fingerprint`, `configuration_fingerprint`, `output_fingerprint`, environment metadata (Python version, NumPy version, OS platform, machine architecture), validation status, check counts, warnings, and limitations.
+- **Independent Invariant Verification (`verify_experiment_invariants`)**:
+  - Validates non-circular mathematical constraints:
+    - Portfolio weights sum to $1.0 \pm 10^{-5}$.
+    - Asset HHI scale consistency ($H_{\text{points}} = 10000 \times H_{\text{decimal}}$).
+    - Tail coherence: $\text{ES}_\alpha \ge \text{VaR}_\alpha - 10^{-9}$.
+    - Maximum drawdown bounded within $[0.0, 1.0]$.
+    - Strict finiteness of all baseline and perturbed metrics.
+- **Output Comparison & Drift Detection (`compare_experiment_runs`)**:
+  - Compares two experiment runs and produces a structured `DriftReport`.
+  - Accurately classifies drift source:
+    - **Input Data Drift**: Input dataset SHA-256 changed.
+    - **Configuration Drift**: Model parameters or perturbation specs changed.
+    - **Environment Drift**: Operating system, Python release, or NumPy version changed.
+    - **Tolerance Divergence**: Numerical metrics diverged beyond configurable threshold $\epsilon$ (default $10^{-6}$).
+- **Reports & Audits**:
+  - Phase 5 Verification Report: [`docs/phase-5-verification-report.md`](file:///Users/vemanahemanthbabu/srujana_hackathon_2/docs/phase-5-verification-report.md).
+  - Phase 6 Issue Review: [`docs/phase-6-issue-review.md`](file:///Users/vemanahemanthbabu/srujana_hackathon_2/docs/phase-6-issue-review.md).
+  - Phase 6 Implementation Report: [`docs/phase-6-report.md`](file:///Users/vemanahemanthbabu/srujana_hackathon_2/docs/phase-6-report.md).
+
+---
+
 
 ## Fragility Lab (Phase 5)
 

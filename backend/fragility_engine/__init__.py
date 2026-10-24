@@ -51,6 +51,20 @@ from fragility_engine.fragility import (
     run_volatility_estimator_perturbation,
 )
 
+from fragility_engine.reproducibility import (
+    DriftReport,
+    ExperimentSpecification,
+    InvariantCheckReport,
+    ReproducibilityManifest,
+    ReproducibilityRunResult,
+    canonical_json_dumps,
+    compare_experiment_runs,
+    compute_canonical_hash,
+    compute_dataset_hash,
+    run_reproducible_experiment,
+    verify_experiment_invariants,
+)
+
 __version__ = "0.1.0"
 __all__ = [
     # Domain Models
@@ -99,4 +113,16 @@ __all__ = [
     "run_correlation_perturbation",
     "run_confidence_level_perturbation",
     "rank_perturbation_sensitivities",
+    # Validation & Reproducibility Lab Engine (Phase 6)
+    "canonical_json_dumps",
+    "compute_canonical_hash",
+    "compute_dataset_hash",
+    "ExperimentSpecification",
+    "ReproducibilityManifest",
+    "InvariantCheckReport",
+    "verify_experiment_invariants",
+    "ReproducibilityRunResult",
+    "run_reproducible_experiment",
+    "DriftReport",
+    "compare_experiment_runs",
 ]
