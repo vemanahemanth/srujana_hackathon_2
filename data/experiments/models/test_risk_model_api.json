@@ -1,0 +1,44 @@
+{
+  "model_id": "test_risk_model_api",
+  "name": "API Test Risk Model",
+  "version": "1.0.0",
+  "owner": "default_user",
+  "model_family": "risk_estimator",
+  "required_inputs": [
+    "returns"
+  ],
+  "expected_output_schema": {},
+  "supported_assets": [
+    "EQUITY",
+    "ETF"
+  ],
+  "supported_frequencies": [
+    "1D"
+  ],
+  "supported_horizons": [
+    "1D"
+  ],
+  "prediction_types": [
+    "risk_metric"
+  ],
+  "supported_labs": [
+    "risk",
+    "fragility"
+  ],
+  "supported_tests": [
+    "historical_var"
+  ],
+  "training_data_window": null,
+  "runtime_limits": {
+    "timeout_sec": 30.0,
+    "memory_mb": 1024
+  },
+  "known_limitations": [],
+  "unsupported_operations": [],
+  "is_deterministic": true,
+  "requires_seed": false,
+  "supports_historical_replay": true,
+  "supports_walk_forward": true,
+  "supports_out_of_sample": true,
+  "code_isolation_required": false
+}

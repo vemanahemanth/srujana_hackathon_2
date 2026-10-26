@@ -358,3 +358,171 @@ def test_api_export_benchmark_markdown_and_json(client):
     exp_json_resp = client.post("/api/export", json={"type": "benchmark", "format": "json", "report_data": report_data})
     assert exp_json_resp.status_code == 200
     assert json.loads(exp_json_resp.text)["benchmark_id"] == "test_export_bench"
+
+
+# ==============================================================================
+# 9. Extended Lab Endpoints: Models, Simulation, Diagnostics, Assumptions, Attribution
+# ==============================================================================
+
+def test_api_register_custom_model_and_benchmark(client):
+    """Verify registering a custom Student-t model and benchmarking it via API."""
+    reg_payload = {
+        "model_id": "api_custom_student_t",
+        "name": "API Custom Student-t",
+        "family": "student_t",
+        "parameters": {"degrees_of_freedom": 4.5},
+        "description": "Registered via REST API",
+    }
+    reg_resp = client.post("/api/models/register", json=reg_payload)
+    assert reg_resp.status_code == 200
+    reg_data = reg_resp.json()
+    assert reg_data["success"] is True
+    assert reg_data["plugin"]["plugin_id"] == "api_custom_student_t"
+
+    # Now verify it appears in health registered models
+    health_resp = client.get("/api/health")
+    pids = [p["plugin_id"] for p in health_resp.json()["registered_models"]]
+    assert "api_custom_student_t" in pids
+
+    # Execute benchmark including this newly registered model
+    bench_payload = {
+        "benchmark_id": "test_bench_with_custom",
+        "plugin_ids": ["builtin.parametric_gaussian", "api_custom_student_t"],
+        "metrics_to_compare": ["var_95"],
+    }
+    bench_resp = client.post("/api/benchmarks/execute", json=bench_payload)
+    assert bench_resp.status_code == 200
+    b_data = bench_resp.json()
+    assert b_data["success"] is True
+    assert len(b_data["report"]["model_entries"]) == 2
+
+
+def test_api_simulate_monte_carlo(client):
+    """Verify forward Monte Carlo path simulation endpoint."""
+    payload = {
+        "horizon_days": 20,
+        "n_simulations": 300,
+        "distribution": "student_t",
+        "df": 4.0,
+        "initial_value": 500000.0,
+    }
+    resp = client.post("/api/simulation/monte-carlo", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    res = data["result"]
+    assert res["horizon_days"] == 20
+    assert res["num_paths"] == 300
+    assert len(res["percentile_5th_path"]) == 21
+    assert res["simulated_var_95"] > 0.0
+
+
+def test_api_calculate_bootstrap_uncertainty(client):
+    """Verify non-parametric bootstrap uncertainty calculation endpoint."""
+    payload = {
+        "n_bootstraps": 300,
+        "confidence_level": 0.95,
+    }
+    resp = client.post("/api/simulation/bootstrap", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    res = data["result"]
+    assert res["bootstrap_iterations"] == 300
+    assert res["var_ci_95_lower"] <= res["var_ci_95_upper"]
+    assert res["point_estimate_var"] > 0.0
+    assert len(res["uncertainty_interpretation"]) > 0
+
+
+def test_api_calculate_data_diagnostics(client):
+    """Verify empirical moments, normality test, and model suitability endpoint."""
+    resp = client.post("/api/data/diagnostics", json={"series_id": "api_test_series"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    diag = data["diagnostics"]
+    assert diag["observations_count"] > 0
+    assert "skewness" in diag
+    assert "excess_kurtosis" in diag
+    assert "jarque_bera_stat" in diag
+    assert "suitability_verdict" in diag
+
+
+def test_api_get_assumptions_catalog(client):
+    """Verify retrieving the centralized model assumption registry."""
+    resp = client.get("/api/assumptions/catalog")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    assert data["count"] >= 5
+    model_ids = [a["model_id"] for a in data["assumptions"]]
+    assert "builtin.parametric_gaussian" in model_ids
+    assert "builtin.historical_simulation" in model_ids
+    assert "custom.student_t" in model_ids
+    assert "builtin.ewma" in model_ids
+    assert "custom.cornish_fisher" in model_ids
+
+
+def test_api_calculate_risk_attribution(client):
+    """Verify Euler Marginal Risk Allocation and Component VaR decomposition endpoint."""
+    resp = client.post("/api/risk/attribution", json={"confidence_level": 0.95})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    attr = data["attribution"]
+    assert "portfolio_var_95" in attr
+    assert len(attr["asset_attributions"]) > 0
+    assert attr["euler_discrepancy"] < 1e-6
+    assert "Euler Homogeneity" in attr["methodology"]
+
+
+# ==============================================================================
+# 10. Platform Security & Defensive Headers Tests
+# ==============================================================================
+
+def test_api_defensive_security_headers(client):
+    """Verify standard HTTP security headers are injected into API responses."""
+    resp = client.get("/api/health")
+    assert resp.status_code == 200
+    headers = resp.headers
+    assert headers.get("x-content-type-options") == "nosniff"
+    assert headers.get("x-frame-options") == "DENY"
+    assert "max-age=31536000" in headers.get("strict-transport-security", "")
+    assert "default-src 'self'" in headers.get("content-security-policy", "")
+
+
+def test_api_auth_token_endpoint(client):
+    """Verify JWT bearer token creation endpoint."""
+    payload = {
+        "user_id": "usr_quant_1",
+        "tenant_id": "ten_alpha_capital",
+        "role": "researcher",
+    }
+    resp = client.post("/api/auth/token", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    assert "token" in data
+    assert data["token_type"] == "Bearer"
+    assert data["tenant_id"] == "ten_alpha_capital"
+    assert data["role"] == "researcher"
+
+    # Missing user_id fails
+    err_resp = client.post("/api/auth/token", json={"tenant_id": "ten_1"})
+    assert err_resp.status_code == 400
+
+
+def test_api_security_status_endpoint(client):
+    """Verify platform security status and readiness verdict reporting."""
+    resp = client.get("/api/security/status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    assert "database_engine" in data
+    assert "tenant_isolation_mode" in data
+    assert "sandbox_worker_available" in data
+    assert "security_verdicts" in data
+    assert "local_research" in data["security_verdicts"]
+    assert "hosted_multi_user" in data["security_verdicts"]
+    assert "untrusted_plugins" in data["security_verdicts"]
+

@@ -1,0 +1,1481 @@
+# FragilityShield: Open-Source Financial and ML Model Testing Laboratory
+
+FragilityShield is envisioned as an open-source, plug-and-play laboratory for quantitative model testing, financial risk analysis, stress testing, assumption sensitivity, robustness attacks, and reproducible reporting.  It is **not** an investment-advice system but a rigorous testing environment.  Key capabilities include bringing user-supplied models/data, performing validated risk/ML analyses, and systematically challenging assumptions to produce evidence-based results.  The platform addresses questions like “How sensitive is this risk estimate to its assumptions?” and “Can we reproduce and compare this model’s behavior under controlled experiments?” 
+
+This blueprint details the architecture, methodology, and implementation plan for FragilityShield.  It covers component designs (Portfolio Lab, Risk Lab, Scenario Lab, Fragility Lab, etc.), integration patterns (Zoho Catalyst backend, Indian market data), SDKs, data warehouse design, security, testing, and a 48-hour hackathon MVP plan.  All claims are grounded in official documentation or authoritative sources.  Unverified assumptions are flagged for later validation.
+
+## 1. Executive Summary
+
+FragilityShield aims to be **the open-source, plug-and-play laboratory for financial risk analysis, ML model testing, assumption attacks, model benchmarking and reproducible quantitative research**.  It differs from conventional finance dashboards by focusing on *how much to trust* model outputs and what evidence supports them.  Users connect their own models, data, and APIs into FragilityShield, which runs deterministic and stochastic tests, sensitivity/robustness analyses, and consistency checks, producing a Fragility Score or sensitivity profile.  Outputs include visual reports, ranked assumption impacts, and reproducibility artifacts.  The system is modular, vendor-agnostic, and emphasizes evidence over claims.  **Key principles:** “bring your own” models/data, test-and-attack framework, consistent metric computation, and reproducible results with explicit provenance.  
+
+The MVP (48‑hour hackathon deliverable) will demonstrate core functionality: a web interface (on Zoho Catalyst), sample portfolios (₹10 lakh NSE), basic risk metrics (volatility, historical VaR, CVaR, max drawdown), a couple of stress scenarios (e.g. Banking -20%, IT -10%), several assumption attacks (e.g. missing data, varying estimation window), a rudimentary Fragility Score or separate sensitivity/evidence metrics, and an experiment studio to configure/save runs and export reports.  Minimal plug-in examples (one custom model adapter, one attack plugin) will showcase extensibility.  The design allows progressive addition of features (ML model evaluation, optimization, external connectors, etc.) in later phases.
+
+## 2. Problem Definition and Positioning
+
+Modern finance dashboards answer “*What is my portfolio’s risk?*” (VaR, volatility, P&L, etc.).  FragilityShield instead asks “*How much should I trust this risk estimate? What assumptions underlie it?*”  It systematically challenges risk and ML models under user-defined and automated tests.  This aligns with best practices in model risk management: *model validation, sensitivity analysis, and stress testing*.  By contrast with black-box “certification”, FragilityShield emphasizes *evidence and documentation*: each test result is explicitly linked to its assumptions, data inputs, and methodology.
+
+FragilityShield’s core positioning is as a **testing laboratory**, not an investment engine.  Its role is to *expose fragility and uncertainty*, not to optimize or guarantee returns.  It supports analysts, quants, and developers who need to validate or compare models.  Unlike turnkey risk products, it is **model-agnostic**: users supply the models (Python code, APIs, data) and the platform provides the testing framework.  This “bring your own model/data” approach ensures transparency and flexibility.  
+
+## 3. User Personas and Workflows
+
+- **Risk Analyst / Quantitative Researcher:** Wants to verify a portfolio risk model. Workflow: load portfolio, select risk model, run baseline metrics, apply stress scenarios and assumption perturbations (e.g. change volatility estimator), review fragility analysis, examine evidence (validation tests), export report.
+
+- **ML Model Tester / Data Scientist:** Has a regression/classification/forecasting model for finance data. Workflow: register model (Python SDK or REST API), select test dataset, choose performance metrics (MAE, ROC-AUC, etc.), run evaluation and robustness tests (noise, missing values, distribution shift), review results and export for comparison.
+
+- **Portfolio Manager:** Interested in portfolio exposures and scenario impact. Workflow: import portfolio (CSV of holdings in NSE stocks), view allocations and concentration metrics (sector HHI, top holdings), apply predefined or custom sector shocks (e.g. “Banking -20%”), view stressed P&L, and see fragility report indicating which assumptions (e.g. correlation, estimation window) most affect risk metrics.
+
+- **Developer / Model Author:** Wants to integrate a custom financial/ML model. Workflow: use Python SDK or CLI to register a model plugin, define its input/output schema, write unit tests, then run an experiment using this model within FragilityShield’s framework. Confirm that it produces expected results on sample data.
+
+- **Audit/Compliance Officer:** Needs evidence of model validation. Workflow: view validation lab to see test results (pass/fail/inconclusive), experiment provenance (datasets, model versions, seeds), and check that critical assumptions and limitations are documented. Ensure regulatory compliance standards (e.g. avoiding look-ahead bias).
+
+All workflows emphasize reproducibility and traceability: every experiment is logged with configuration, data references, and results.  Analysts should be able to reproduce a published test by re-running a saved experiment.
+
+## 4. Functional Requirements
+
+FragilityShield consists of modular **labs** and services.  Core required features include:
+
+- **Portfolio Lab:** Create/manage portfolios of equities, ETFs, bonds, cash. Support manual input and CSV/Parquet import. Normalize units and currencies. Use pluggable market data (e.g. sample NSE data, optionally real-time provider). Compute valuations (market value, P&L, invested capital). Derive allocations by asset, sector, industry, geography. Compute concentration (Herfindahl–Hirschman Index) and list top holdings. Support portfolio snapshots. Indicate data issues (missing or stale prices). Use authoritative classification where available (e.g. Reuters/Infopro sector codes); do **not fabricate** metadata.
+
+- **Risk Lab:** Compute risk metrics for a portfolio:
+
+  - *Volatility:* historical and rolling (e.g. 30-day) standard deviation of returns.
+
+  - *Historical VaR:* e.g. 1-day 95% VaR via historical simulation.
+
+  - *Expected Shortfall (CVaR):* average loss beyond the VaR threshold.
+
+  - *Maximum Drawdown* and *Duration:* largest peak-to-trough drop and days to recover.
+
+  - *Sharpe Ratio:* (mean excess return / std.dev), using a risk-free rate if provided.
+
+  - *Sortino Ratio:* analogous but uses downside deviation (ignores positive returns).
+
+  - *Calmar Ratio:* (annual return / max drawdown).
+
+  - *Downside Risk Measures:* e.g. semi-variance, up/down capture.
+
+  - *Correlation/Covariance Matrix:* asset pair correlations.
+
+  - *Beta:* regression beta against benchmark (if provided).
+
+  - *Concentration:* e.g. HHI of positions.
+
+  - *Risk Contributions:* e.g. Component VaR (marginal VaR contributions) where appropriate.
+
+  For each metric, FragilityShield **documents** formula, assumptions (log vs simple returns, weights treatment), input requirements (time horizon, confidence level), units, and limitations.  For example, Historical VaR is non-parametric and easy to explain but assumes static distribution.  The engine must handle edge cases (zero volatility, short history) and flag when a metric cannot be computed reliably (e.g. infinite Sharpe if zero volatility).  Numerical safeguards (small epsilon for divide-by-zero) and warnings for bad data (NaNs) are required.  We distinguish portfolio-level VaR from individual asset VaR.
+
+- **Scenario Lab (Stress Testing):** Apply deterministic or historical market shock scenarios:
+
+  - *Asset-level shocks:* specific stocks up/down by X%.
+
+  - *Sector shocks:* e.g. “Banking -10%” applies to all banking-sector holdings.
+
+  - *Market-wide shocks:* e.g. S&P500 -15%, INR-weakening, etc.
+
+  - *Multi-factor shocks:* e.g. simultaneous asset+FX moves.
+
+  - *Severity Presets:* mild/moderate/severe (e.g. 5%, 10%, 20% drops).
+
+  - *Custom shock magnitudes and targets*.
+
+  - *Historical event replay:* e.g. use an official NSE dataset of the 2008 crash to compute hypothetical P&L.
+
+  - *Alternative correlations:* replace empirical covariance with stress/low/high correlation scenarios.
+
+  - Show baseline vs stressed portfolio: absolute and percentage loss.  Attribute impact by holding and sector.
+
+  - Allow template scenarios to be saved/reused.
+
+  - **Caution:** Clearly state that a simple price shock does not model liquidity evaporation, margin calls, feedback loops, etc. These require explicit models beyond deterministic shocks.
+
+- **Fragility Lab (Assumption Testing):** The signature module. It must contain:
+
+  - **Assumption Registry:** a versioned catalog of possible assumptions/attacks, e.g. “Missing Data”, “Window Length”, “Volatility Estimator”, “Normality”, “Correlation Regime Shift”, “Transaction Cost”, etc. Each entry includes: identifier, description, category, affected models/metrics, baseline value/method, alternative values/methods, attack procedure, expected interpretation, applicability, computational cost, evidence needed, limitations, version.  Categories include data quality, statistical, model spec, correlation, concentration, liquidity, costs, tax/regulation, operations.
+
+  - **Automated Assumption Attacks:** Predefined perturbations that challenge assumptions:
+
+    - Missing-value attack: remove a portion of input data.
+
+    - Stale-price attack: use older prices.
+
+    - Outlier sensitivity: clamp or remove extreme returns.
+
+    - Window changes: shorter/longer historical lookback.
+
+    - Volatility method: e.g. use EWMA vs historical std.
+
+    - Normality challenge: apply kurtosis test or use alternative distribution fitting.
+
+    - Regime shift: split data (in-sample vs out-of-sample) or apply known crisis covariance matrix.
+
+    - Correlation alternatives: use shrinkage or identity matrix.
+
+    - Concentration: test effect of reallocating weights.
+
+    - Transaction cost: assume X% slippage.
+
+    - Liquidity haircut: reduce holdings by selling out some fraction.
+
+    - Weight perturbations: randomize portfolio weights slightly.
+
+    - Alternative models: substitute a different risk model or predictor.
+
+    - Change data frequency (e.g. daily→weekly).
+
+    - Change tax/fee assumptions.
+
+  Each attack declares which inputs it modifies and which outputs to measure.  The system must prevent look-ahead bias (e.g. using future knowledge inadvertently) and ensure comparisons are consistent (e.g. reset to baseline inputs between attacks).
+
+  - **Fragility Score:** Optionally compute a 0–100 score summarizing sensitivity.  **Important:** Avoid arbitrary weighting or misinterpretation. Any score must have a documented formula: inputs used, normalization, weighting, handling of missing evidence, aggregation rules, interpretation and limits.  For example, one could define fragility as a percentile of metric changes across attacks, or separate sensitivity and evidence coverage.  We **must not** claim the score is a probability of failure.  If combining into one score is not defensible, report multiple metrics (e.g. max change, average change, evidence count).  Clearly document that high sensitivity signals a need for caution, not an absolute risk.
+
+  - **Counterfactual Impact:** Generate human-readable statements for scenarios, e.g.: “Under the Banking -20% + IT -10% scenario, portfolio VaR increases from ₹X to ₹Y (Δ = ₹Z, +P%).” Only produce statements fully supported by computations (avoid speculation).
+
+  - **Ranking and Visualization:** Show assumptions by impact: sorted lists, bar charts (waterfall if additive), heatmaps of fragility tests, sensitivity curves (e.g. VaR vs volatility estimator variant).  Indicate confidence intervals or evidence warnings. Note if impacts overlap or are non-additive (so **do not sum them naively**). For example, changes from two correlated attacks may not sum linearly; this should be explained.
+
+- **Validation Lab:** Automated testing for both finance and ML models:
+
+  - *Reference tests:* hand-checked examples or formulaic cases for each risk metric (e.g. single asset VaR with known returns).
+
+  - *Schema checks:* ensure model input/output fields match expected schema.
+
+  - *Consistency checks:* e.g. portfolio weights sum to 1, no negative shares unless allowed.
+
+  - *Property-based tests:* use random inputs to test invariants (using Hypothesis or similar).
+
+  - *Edge-case tests:* e.g. zero holdings, zero returns, negative prices should fail gracefully.
+
+  - *Regression tests:* confirm no unintended changes.
+
+  - *Cross-implementation:* if we have a parallel Python formula and a DB calculation, compare outputs.
+
+  - *Data leakage & look-ahead:* e.g. ensure forecasting models don’t see future data. Possibly implement synthetic test where future feature leak can be detected.
+
+  - *Corporate-action checks:* e.g. if using corporate action data, ensure split-adjusted prices align.
+
+  - *Plugin conformance:* test newly added model/attack plugins against generic suite (provided by SDK).
+
+  - *Numerical tolerances:* define allowable error (e.g. machine epsilon, Monte Carlo error).
+
+  - *Reproducibility check:* rerun same experiment and verify identical results (within tolerance).
+
+  - *Quality summaries:* coverage of data, tests passed/failed.
+
+  Each test record logs: name, version, target, inputs, expected behavior, actual result, tolerance, status (pass/fail/warning/inconclusive), execution time, error detail, environment info.  Use statuses “pass”, “fail”, “warning” (e.g. borderline), “skipped” (if preconditions unmet), “inconclusive” (e.g. insufficient data).  Do **not** mark un-run tests as passed.  Distinguish “failed test” from “cannot evaluate due to missing data”.
+
+- **Experiment & Report Studio:** Central experiment manager:
+
+  - Users create named experiments with configuration: reference portfolio, dataset, model, metrics, scenarios, attacks, validation suites.
+
+  - Each experiment run stores: portfolio ID, model version, metric list, scenario definitions, attack list, validation list, dataset references (with hashes/dates), plugin versions, random seeds, timestamps, run status, output artifacts (metrics, reports).
+
+  - Allow re-running: either live (rerun analysis) or for reproducibility check (compare old vs new run results under same config).
+
+  - Maintain history and comparisons: e.g. view risk trend across experiments, fragility improvements.
+
+  - Export results: HTML report (with charts/tables), CSV/JSON data files.
+
+  - Guarantee immutability: once run completes, do not overwrite config or outputs (append new version).
+
+  - Document limitations: if external APIs or live data used, note that perfect reproducibility is not possible. e.g. if a stock’s historical price was adjusted since last run, or if ML model has randomness beyond fixed seed.
+
+- **Allocation & Comparison Lab:** Simple allocation adjustments and comparisons:
+
+  - Allow manual weight editing and see immediate metric changes.
+
+  - Provide a baseline like equal-weight or market-cap.
+
+  - Optionally, implement a basic minimum-variance optimization (quadratic programming) to illustrate. Always disclose assumption (returns only from history, no constraints on turnover, etc.).
+
+  - When showing optimized vs original, include constraint diagnostics (e.g. bound hits).
+
+  - Compute turnover (sum(abs(new-old))) and assumed transaction costs. Do *not* present optimized portfolio as “optimal” financial guarantee; it is illustrative.
+
+  - Compare risk and fragility of alternative allocations.
+
+- **Indian Market Layer:** Preload Indian market context:
+
+  - Use NSE-style sample instruments (stocks, possibly NIFTY index or ETFs).
+
+  - Display currency in INR.
+
+  - Account for Indian trading calendar (e.g. drop weekends/holidays).
+
+  - Handle corporate actions if reliable data (split, dividends). If none, document absence.
+
+  - Default transaction cost and tax assumptions (e.g. 0.1% brokerage, 0.018% STT) with ability to configure. Cite references if possible (e.g. SEBI charges).
+
+  - Effective dates: e.g. tax rates changed after FY2023 etc.
+
+  - Sector templates (e.g. banking, IT sets based on NIFTY sectors).
+
+  - If Upstox integration is chosen, verify: Upstox’s **Historical Data** and **Market Quote** APIs can fetch NIFTY and stock time series. Upstox provides an *analytics token* for market data (one-time, no daily refresh) and supports sandbox testing. Rate limits apply (e.g. 50 req/sec for data APIs). However, **demo must not require Upstox credentials**, so fall back to cached/sample data for the hackathon.  Real Upstox integration (with live API keys) is an advanced plugin scenario.
+
+- **Dashboard and Visualization:** A polished UI (AppSail-hosted or similar) with these pages:
+
+  1. **Overview:** Summary of current experiment, recent runs, key warnings.
+
+  2. **Portfolio Lab:** Portfolio composition, asset allocation pie chart, sector allocation, concentration metrics (HHI), list of top holdings.
+
+  3. **Risk Lab:** Risk metric cards (volatility, VaR, etc.) with definitions hover, covariance heatmap, Sharpe/Sortino values.
+
+  4. **Scenario Lab:** Controls to define/choose scenarios, chart of baseline vs scenario P&L by asset/sector, summary table.
+
+  5. **Fragility Lab:** Chart/table of assumption impact ranking, fragility heatmap, sensitivity curves for key metrics, fragility score indicator.
+
+  6. **ML Model Testing:** (Phase 2) performance tables/curves (ROC, scatter, etc.), confusion matrix, calibration plots.
+
+  7. **Model Benchmarking:** Compare multiple models side-by-side (table of metrics, time), show relative rank.
+
+  8. **Validation Lab:** List of tests with status icons (✔️/⚠️/❌), clickable to details.
+
+  9. **Experiments:** List of past runs with config summary, link to details and export.
+
+  10. **Reports:** Download center for PDF/HTML/CSV outputs of experiments.
+
+  11. **Data Sources:** Show connected data feeds (e.g. Upstox, file uploads) with status.
+
+  12. **Plugins/SDK:** Manage installed plugins (models, attacks) and their versions.
+
+  13. **Warehouse & Analytics:** (If used) Links to analytics dashboards or query tools.
+
+  14. **Settings:** API keys (securely), user preferences, glossary of terms.
+
+Visual design must include loading spinners, empty state messages, and avoid conveying information by color alone (e.g. also use icons or labels for error/warning).  All charts should have clear legends and tooltips.  The UI must always show what data/models are active (e.g. “Sample NSE Portfolio, Sample Data, Risk Model: Historical VaR” etc.) so users never lose context.
+
+## 5. Non-Functional Requirements
+
+- **Plug-and-Play Extensibility:** From day one, allow users to use built-in sample data/models (no auth needed), and then to add their own via well-defined adapters.  The core engine should rely only on abstract interfaces; e.g. a *DataProvider* interface for market data, a *Model* interface for risk/ML models, a *Metric* interface for evaluators, etc.  Replacing a data or model provider (e.g. local vs REST) should not require rewriting core logic.  Experiment configurations should support both UI and code (YAML/JSON).
+
+- **Model-Independent Core:** No hardcoding of a specific ML framework or vendor.  For instance, allow TensorFlow, scikit-learn, or an external API to be used interchangeably through adapters.  At minimum, support a Python model API (predict function), and possibly REST model endpoints.  Similar modularity for analytical backends (Catalyst OLAP vs external DB).
+
+- **Single Calculation Engine:** The same Python calculation library must power the dashboard, SDK, and CLI.  Avoid duplicated formula implementations.  E.g. portfolio VaR should be computed by one core function that is used by both the UI and the Python SDK.  This ensures consistency (e.g. if Sharpe is defined with one formula, it’s used everywhere).  
+
+- **Evidence over Claims:** Every output is accompanied by evidence or assumptions.  The system distinguishes: “software correctness” (passed tests), “model correctness” (e.g. no coding error), “data quality” (missing data flags), “statistical robustness” (sensitivity measures), “predictive performance” (accuracy metrics), and “financial usefulness” (warn that high Sharpe historically doesn’t guarantee future).  For example, a passing validation test indicates correct implementation, *not* that the model yields good investments.  Similarly, a computed sensitivity score is evidence of how volatile an output is to perturbations, **not** the probability of failure.
+
+- **Explicit Limitations:** The UI and documentation must always clarify limitations.  E.g. “This VaR is historical simulation only, not a full Monte Carlo.”  “We assumed no transaction costs unless specified.”  “Past crisis replay does not predict future crises.”  “Fragility Score is a heuristic index, not a calibrated probability.”  A scenario shock is just a *single-factor price move*, not a full market event.  Avoid implying capabilities not implemented.
+
+- **Security and Trust:** All code (especially plugins) is treated as untrusted by default.  Custom model execution must be sandboxed: e.g. Python code in functions with limited memory, no file/network beyond allowed, no secrets leakage.  API keys stored securely (see Sec. 26).  Tests for missing credentials, timeouts, rate-limit errors are included.  Users’ data should be isolated per workspace.  (Zoho Catalyst supports project-level isolation.)  Logging avoids printing secrets.  Use HTTPS for all endpoints.
+
+- **Performance:** The MVP targets small portfolios (tens to hundreds of instruments) and moderate test sets.  But design to scale to larger (thousands) and to heavier compute (parallel stress tests).  We assume Catalyst has some quotas on memory/CPU per function; heavy tasks may use multiple invocations or batch processing (e.g. sample risk metrics in parallel).  File and database operations should use efficient bulk APIs (Zoho Data Store bulk writes, Stratus object IO).
+
+- **Reliability:** Implement retries for transient errors (e.g. external API fails, try up to N times).  Use idempotent operations for job submission so re-running doesn’t duplicate.  Provide progress/status updates (especially for long-running jobs via “job functions”).  Use Catalyst scheduling or Circuits (if needed) to queue background tasks with retries.
+
+- **Usability:** The UI should guide users clearly.  Provide defaults (e.g. sample data, default assumptions).  Validation of experiment config before run (e.g. require portfolio and model selected).  Explain errors (e.g. “Data schema mismatch: model expected field X”).  Human-readable field names and help tooltips.  Provide examples in docs (see Sec. 20 config schema example).
+
+- **Analytics and Auditing:** All experiments, data versions, and code versions must be tracked for reproducibility (Sec. 25).  Avoid silent overwrites of results.  Provide logs and metrics for operations to facilitate debugging.
+
+- **Extensibility Priority:** Given 48h limit, focus MVP on core demo path (see Sec. 35).  Many advanced features (multi-user auth, marketplace, AI agents) are “future” items unless small prototypes exist.  Plug-ins: implement a simple internal registry (e.g. folder of plugins).  Consider dynamic loading only if time permits.
+
+## 6. Feature Priority Matrix
+
+| **Feature**                   | **Priority** | **Hackathon Scope** | **Notes**                                                                                 |
+
+|-------------------------------|------------:|--------------------|-------------------------------------------------------------------------------------------|
+
+| Portfolio CRUD/import         | High        | Yes                 | Use Catalyst Data Store for portfolio metadata; basic UI/table display                    |
+
+| Holdings valuation (NSE data) | High        | Yes                 | Sample cached historical prices, focus on equities; start with end-of-day prices         |
+
+| Asset Allocation / HHI        | High        | Yes                 | Sector classification via sample mapping; compute HHI from weights       |
+
+| Core risk metrics (vol, VaR, CVaR, drawdown) | High | Yes | Implement historical VaR (non-parametric), CVaR, etc.         |
+
+| Stress Scenarios (banking/IT) | High        | Yes                 | Predefine two sector shocks; show baseline vs stressed VaR/P&L; attribution by sector   |
+
+| Assumption attacks (~5)       | High        | Yes                 | E.g. “missing data”, “window sensitivity”, “vol estimator variant”, “correlation shift”, “transaction cost”. |
+
+| Fragility score (initial)     | Medium      | Minimal             | Possibly simple aggregate or separate report metrics (sensitivity, test coverage)         |
+
+| Experiment runner/storage     | High        | Yes                 | Save config/results in Data Store; allow re-run; provenance logging                        |
+
+| Report export (HTML/PDF)      | Medium      | Yes (basic)         | Export selected charts/tables in one report                                                 |
+
+| Validation panel              | Medium      | Yes                 | Show basic test results (pass/warning icons) for formulas and data checks                  |
+
+| Plugin/SDK examples           | Medium      | Yes (1 model, 1 attack) | Simple Python “dummy” model; one example attack plugin                                      |
+
+| Python SDK (basic client)     | Medium      | Partial            | If time, a minimal SDK for registering models/experiments (could be deferred to next)     |
+
+| UI/UX polish                  | High        | Yes                 | Professional look, though MVP can use simple Bootstrap or similar; focus on clarity       |
+
+| Zoho Analytics integration    | Low         | No                 | Not needed for MVP – skip (footnote as future option)                                     |
+
+| External Warehouse (BigQuery) | Low         | No                 | Out of hackathon scope                                                                  |
+
+(This matrix is a guideline; final implementation choices may adjust after tech spikes.)
+
+## 7. System Architecture
+
+The architecture is a **serverless web application** on Zoho Catalyst.  Key components:
+
+- **Frontend/UI:** A web client (likely React or Angular) served by Catalyst AppSail.  It calls backend APIs and renders results.
+
+- **Backend API:** Catalyst API Gateway routes requests to Functions.
+
+- **Catalyst Functions:** Implements business logic (pricing, risk calculations, attack simulations).  Two kinds: synchronous (HTTP-triggered) for quick actions and asynchronous (Job Functions) for longer tasks.  Functions use the Catalyst Python SDK and scientific libraries.
+
+- **Data Store:** Catalyst’s cloud relational database for operational data (portfolios, experiments, metadata).  Exposes a ZCQL/SQL interface.
+
+- **OLAP DB:** Catalyst’s built-in OLAP for analytical queries (part of Data Store), used for storing time-series of risk metrics or large result tables.
+
+- **Object Storage (Stratus):** For large or unstructured data: uploaded CSV/Parquet, historical time series (>GB), model binaries, experiment artifacts. Supports bucket/object model.
+
+- **External Integrations:** e.g. Upstox REST/Websocket for market data, external ML APIs. Accessed by Functions when configured.
+
+- **Python Calculation Engine:** Shared library (included in Functions) performing portfolio math, risk formulas (validated by peers). Both frontend (via API) and backend CLI/SDK use this core.
+
+Each **experiment run** consists of orchestrated Function calls: e.g. `computeBaselineRisk(portfolio, model)`, then `applyScenario(...)`, then `runAttack(...)`.  We use Catalyst’s asynchronous “Job Functions” for heavy loops (e.g. applying many attacks).  Results and logs are stored in Data Store (or OLAP for metrics) and Stratus (for raw outputs).  This ensures reproducibility and audit trails.
+
+*Diagram (conceptual)*:  A browser/CLI ↔ API Gateway ↔ Functions ↔ Data Store/Stratus; and Functions ↔ external APIs (Upstox).  
+
+*(Note: no image cited. Diagram would show user browser connecting to AppSail UI, which calls Catalyst Functions (via API Gateway). Functions interact with Data Store (for config/history) and Stratus (for data), and optionally call external services like Upstox.)* 
+
+## 8. Zoho Catalyst Service-Capability Matrix
+
+| **Catalyst Service**      | **Responsibility**                       | **Limits & Support**                                                        | **Integration**                        | **Security/Notes**                                      |
+
+|--------------------------|------------------------------------------|-----------------------------------------------------------------------------|----------------------------------------|--------------------------------------------------------|
+
+| **API Gateway**          | Expose versioned HTTP APIs for CLI/UI    | Supports REST endpoints with authentication (OAuth/token). Rate limits unknown (likely high for small app). | Tied to Functions via HTTP triggers.   | Auth via Catalyst’s AppAuth (OA2); apply role checks.  |
+
+| **Catalyst Functions**   | Business logic (serverless code)         | Supports Java, Node, Python runtimes, time-outs (unknown, likely ~5min), memory 128–512 MB. Job Functions for async tasks. | CLI or SDK deploy; invoked by API or scheduled jobs.    | Code sandboxed; no SSH. Functions get project-wide IAM scope. |
+
+| **Data Store (RDBMS)**   | Operational DB (SQL) + built-in OLAP | Unlimited DB objects, OLAP DB scale (“any scale” claim). ZCQL query language (SQL-like). | Access via Catalyst SDK (Java/Python), CLI, or ZCQL console. | Data at rest encrypted; VPC restrict by project.   |
+
+| **Stratus (Object Storage)** | Data lake (buckets, objects) | 10 buckets max per project, unlimited total size, object max 250 GB. | Via SDK or REST; bucket policy config (ACL).                     | Secure keys (Account Key) to access. Permissions via Console.   |
+
+| **Catalyst CLI/SDK**    | Devops and API client (Java/Node/Python)  | Provides project creation, function deployment, Data Store commands. | CLI used for CI/CD; SDK for programmatic actions.          | Credentials managed by user.                              |
+
+| **Authentication/Authorization** | User login, access tokens, roles | Supports login via Catalyst console (Zoho account) or custom client app. Fine-grained roles not documented publicly. | Use Catalyst’s AppAuth (JWT) in API. Possibly integrate Zoho IDP for OAuth. | All API calls use OAuth Bearer (client id/secret) or OAuth tokens. |
+
+| **Cache** (optional)    | In-memory cache (Redis?)                 | Catalyst offers a key-value cache service (not in docs above).            | Could be used to cache market prices or results.            | Not mandatory; maybe skip MVP.                           |
+
+| **Scheduler/Circuits**  | Job scheduling (Cron) & workflows        | Catalyst Cron triggers available, but long jobs need Job Functions. Circuits (workflow) exist (Catalyst Circuits), not well-documented. | Use for periodic tasks (e.g. data refresh). Job Functions for on-demand. | Cron functions limited by planner; fallback to Job Functions for heavy work. |
+
+| **Secrets/Config**      | Store API keys, config variables         | Env var store for Functions. Possibly HashiCorp or Vault integration?  | Use environment variables (Catalyst console) or a secrets manager if available. | Variables encrypted; functions can read but not reveal in logs. |
+
+| **Logging/Monitoring**  | Execution logs, metrics                 | Functions emit logs visible in console (per invocation logs, errors, durations). Custom metrics not obvious. | Logs via Functions’ console (CLI `catalyst function logs`). | Need to parse logs; integrate with Splunk/ELK externally for production. |
+
+| **CI/CD & Deployment**  | Code pipelines                        | Catalyst integrates with GitHub or CLI. No built-in CI; use external (GitHub Actions). | Use `catalyst deploy functions`, etc.                       | CLI outputs version IDs. No rollback except re-deploy older bundle. |
+
+| **Cost and Quotas**     | Pay-as-you-go (?), region-specific     | Unclear pricing publicly; likely free-tier with limits. Must verify enterprise limits, costs of Data Store (per row? per query?). | Monitor usage logs. Maybe restrict heavy operations in dev plan. | Budget risk if large jobs. Design MVP small-scale (demo data). |
+
+| **Alternate Analytics** | Zoho Analytics, external DBs (future)   | Zoho Analytics (BI tool) can live-connect to Catalyst DS/OLAP. External DBs (Snowflake, Redshift, etc.) can be integrated if needed. | Not needed for MVP; plan as Phase 3 option.                   | Check integration cost/latency. Zoho Analytics has its own licensing. |
+
+**Evidence:** Catalyst docs confirm built-in OLAP database, Python/Java/Node support, function memory config, Stratus bucket limits.  Upstox API details (integration, tokens) noted for potential Indian data.  Lack of explicit service limits necessitates cautious design (Sec.24-25 must cover).
+
+## 9. Deployment Architecture
+
+On Zoho Catalyst, we separate lightweight request handling from heavy computation.  The front-end (AppSail) handles UI and small API requests, while heavy tasks run via Functions:
+
+- **AppSail (Web App):** Hosts the static web UI (HTML/JS/CSS). This is *Catalyst-Managed*, e.g. a Python/Flask or Node app (demonstration of Catalyst-Managed AppSail) or simple static hosting.  It connects to Catalyst Functions via internal HTTP. This allows us to lock down user input UI separately from compute.
+
+- **Catalyst Functions (Serverless):** We have:
+
+  - *Basic I/O functions* for each API endpoint (one per route). These should be stateless and short-lived (compute risk on small data or orchestrate tasks).
+
+  - *Job functions* for asynchronous tasks: e.g. calculating risk metrics across many rebalances or running a suite of attacks. These are invoked by the API functions (via Jobs) and report back via callbacks or write to DB.
+
+  - *Cron functions* if needed for periodic data fetch (e.g. daily price refresh from Upstox).
+
+  
+
+  Each function call returns a small JSON result or status. For long tasks, return immediately with a job ID and poll UI for status (Catalyst function triggers).
+
+- **Execution flow:** 
+
+  1. User configures experiment in UI.
+
+  2. UI calls API `POST /experiments/run` with YAML/JSON. 
+
+  3. API function validates config, stores metadata in Data Store, then submits a **Job Function** to execute the experiment. 
+
+  4. The UI polls or listens (WebSocket) for job completion. 
+
+  5. Job Function retrieves portfolio and market data, runs baseline risk, stress tests, assumption attacks in sequence using the **Calculation Engine** library. It writes results to DB/OLAP and sets experiment status to “done”.
+
+  6. UI displays results, charts, and enables export.
+
+- **Data flow:** Market data (prices) can either be preloaded in Stratus (for sample demo) or fetched on-demand via an adapter (e.g. Upstox) and cached. The portfolio and experiment records live in Data Store (OLTP). Analytical results (time series of losses, attack impacts) go into OLAP tables for efficient querying and charting. Reports (screenshots, PDFs) can be saved in Stratus.
+
+- **Load handling:** Catalyst imposes limits (e.g. functions memory, CPU). We will *not* run huge Monte Carlo inside one function. If needed, split tasks: for example, distribute random simulations across multiple functions and aggregate.
+
+**Deployment Process:** Use Catalyst CLI or CI to deploy backend (Functions, Data Store schema) and AppSail app. Maintain version tagging in experiment metadata (ref. Sec. 25).
+
+## 10. Shared Calculation Engine
+
+FragilityShield’s core analytics will be implemented in a shared Python library (packaged in each function). Responsibilities:
+
+- Portfolio math (returns, weights normalization, P&L).
+
+- Risk formulas (Vol, VaR, CVaR, correlations, etc.) with documentation.
+
+- Stress scenario application (apply shocks to returns and recompute metrics).
+
+- ML evaluation logic (scikit-learn, PyTorch, etc calls).
+
+- Attack modules (plug-in interface classes).
+
+- Data handling (align time series, corporate action adjustments if any).
+
+- Validation tests (reference implementations to cross-check logic).
+
+  
+
+This engine must be framework-agnostic (not depending on e.g. TensorFlow, only core libs). It will use pandas/SciPy/numpy for numeric ops.  It will export classes/interfaces for **Model** and **Attack** plugins (Sec.15).  Crucially, **the same functions should be used in API, CLI, and SDK** to guarantee consistent behavior.  
+
+Implementation notes:
+
+- Use pandas DataFrames for portfolio time series. Use `numpy.percentile` for historical VaR, `mean(...)` for CVaR beyond threshold.
+
+- Document each calculation in code and help pages, so UI can show formulas.
+
+- Avoid duplicate logic (e.g. compute covariance once, reuse for Corr and Beta).
+
+## 11. Financial Risk Methodology
+
+FragilityShield’s finance tests follow standard risk management best practices (e.g. J.P. Morgan’s RiskMetrics, Basel frameworks, textbook definitions).
+
+- **Volatility:** Typically sample standard deviation of historical returns (e.g. daily returns, annualized by √252 if showing annual vol).
+
+- **Value at Risk (VaR):** Historical simulation method: sort historic returns, VaR at α% is the αth percentile loss. (E.g. 5th worst loss for 95% VaR, as Northstar Risk notes.) Specify one- or multi-day horizon and confidence. Optionally support parametric VaR (normal), but default to historical to avoid distribution assumption.
+
+- **Expected Shortfall (CVaR):** The average loss given that the VaR threshold is breached. We implement ES = average of worst x% of returns.
+
+- **Correlations/Beta:** Asset correlations/covariance computed on returns over lookback window. Beta by regression against market index returns. Mention CAPM assumption (market portfolio).
+
+- **Drawdown/Duration:** Use time series of cumulative returns: track peaks and troughs to find maximum drop and days until recovery.
+
+- **Sharpe/Sortino/Calmar:** Sharpe = (mean excess return)/(std dev). Sortino = (mean excess)/(downside std dev). Calmar = annual return / max drawdown.
+
+- **Concentration (HHI):** Sum of squared weights *10000 for entire portfolio. Lower is diversified; >2500 indicates high concentration in M&A guidelines.
+
+- **Risk Contribution:** Using Euler allocation for VaR or variance. If w is weight vector and Σ covariance, then marginal contribution = w_i * (Σ * w)_i, etc.
+
+For each metric, record:
+
+- **Inputs:** Required history length, frequency. E.g. “Historical VaR needs at least N past returns; more is better.”
+
+- **Method:** E.g. “Nonparametric historical simulation vs parametric (if implemented).”
+
+- **Assumptions:** “Stationary returns distribution (no regime shift) for simple historical VaR.”
+
+- **Annualization:** If metrics reported annualized (e.g. multiply daily vol by √252).
+
+- **Limitations:** Eg. Sharpe assumes normal returns; Sortino only penalizes negative swings. Distinguish if returns are log or arithmetic.
+
+- **Edge Cases:** Handle zero/one asset, zero covariance, portfolio value ≤0.
+
+- **Reference tests:** Implement known cases (e.g. single asset with constant returns should give zero vol).
+
+**Citations:** Standard definitions are documented in finance literature.  We cite Investopedia for Sharpe and Sortino formulas, and Northstar for historical VaR definition.  These sources confirm our methods and help explain assumptions.
+
+## 12. Fragility Methodology and Score
+
+FragilityShield’s concept of “fragility” parallels stress testing/sensitivity analysis in modeling, but with formal documentation. We propose:
+
+- **Assumption Impact Analysis:** For each tested assumption, measure change in key outputs. E.g. if 95% VaR rises from 1.2% to 1.8% under an attack, record a +50% impact.
+
+- **Fragility Score (if used):** Possibly a composite index of these impacts. One approach: define a “fragility subscore” for each metric as the relative range of change across attacks, then aggregate. However, arbitrary weights are dangerous.  
+
+  Instead, we may **not** produce a single number in MVP. Instead we report: (a) the maximum change, (b) count of assumptions tested, (c) coverage (e.g. percent of relevant categories tested), and (d) average sensitivity.  If insisted, a simple score could be: average of normalized impact percentiles across chosen outputs, but must be clearly explained as *relative sensitivity index*, not probability.  
+
+- **Interpretation:** Clarify that high sensitivity means the model output is *fragile* to assumption changes. But if we lack coverage of many assumptions (e.g. didn’t test liquidity or tax), that’s a coverage gap. So fragility evidence has two aspects: *sensitivity (observed impact)* and *evidence (assumptions tested)*. We should present both, not conflate into one label.
+
+- **Versioning:** The method of computing fragility index (if any) is versioned alongside assumptions registry.  Early MVP might have version 0.1, clearly labeled.
+
+Given time constraints, the MVP could simply rank assumption attacks by absolute impact and label the portfolio as “sensitive” or “robust” based on qualitative criteria. Further research could refine a formal score.
+
+*(No external citation needed – this is original methodology design.)*
+
+## 13. ML Model-Testing Methodology
+
+Beyond finance metrics, FragilityShield extends to generic ML model evaluation:
+
+- **Supported Tasks:** Start with *regression, classification, forecasting*, and (optionally) anomaly detection. Each has standard metrics.
+
+- **Performance Metrics:** 
+
+  - Regression: MAE, RMSE, R² (if relevant), and scale-independent variants (MAPE, MASE for time series). 
+
+  - Classification: confusion matrix, accuracy/precision/recall/F1, ROC-AUC if probabilities available. If class imbalance, prefer F1 or PR-AUC. 
+
+  - Forecasting: horizon-specific errors (sMAE, RMSE); maybe MASE (Mean Absolute Scaled Error). 
+
+  - Anomaly: precision/recall if ground truth anomalies known.
+
+  
+
+  We should also support **calibration** for probabilistic outputs (e.g. via reliability diagrams) and compute Brier score if appropriate.
+
+- **Robustness Tests:** Inspired by adversarial ML:
+
+  - *Input perturbation:* add noise to inputs (Gaussian or feature-specific).
+
+  - *Missing-value:* drop random features or impute differently.
+
+  - *Outlier sensitivity:* insert outliers in inputs.
+
+  - *Distribution shift:* evaluate on a subset with covariate shift (e.g. older data vs newer).
+
+  - *Temporal drift:* for time series, retrain/test in rolling windows (walk-forward validation).
+
+  - *Feature sensitivity:* e.g. vary one feature by ±n% and see effect on output.
+
+  - *Preprocessing variation:* feed scaled vs unscaled, or different encodings.
+
+  - *Model settings:* if model has hyperparameters, vary them (e.g. different random seeds, tree count).
+
+  - *Schema violations:* input with extra/missing columns (should error).
+
+  
+
+  These checks help identify fragility of ML models.  We must label them clearly as “robustness checks” vs “scenario attacks”.
+
+- **Generalization & Leakage:** Automated checks:
+
+  - Partition data into train/val/test with no overlap. For time series: use walk-forward (train on past, test on next period). 
+
+  - Check for target leakage: ensure no predictor uses future info. E.g. if dataset has date features, no backward-looking bias.
+
+  - Out-of-sample vs in-sample performance tracking.
+
+  - Baselines: always compare against a simple baseline model (e.g. “predict last value” or linear regression).
+
+  - If labels become available over time, track performance drift.
+
+- **Calibration & Uncertainty:** If model outputs probabilities or intervals:
+
+  - Check calibration (e.g. reliability plot, compute calibration error).
+
+  - If model supports uncertainty (e.g. quantile regression or dropout), record interval coverage or sharpness.
+
+  - Monitor input distribution drift (KL divergence between train and test feature distributions) separately from performance drift.
+
+- **Benchmarking:** Key design: allow multiple models to be evaluated on same data. Record for each model: version, training data snapshot, metrics, runtime, robustness results. Ensure fair comparison: same train/test splits, same preprocessing.  
+
+No single universal score: output a table of metrics. Possibly rank by one or two primary metrics chosen by user (e.g. ROC-AUC). Always note that better metric ≠ guaranteed future performance, just empirical result.
+
+*(These follow standard ML evaluation textbooks; no specific citation needed.)*
+
+## 14. Model Benchmarking Design
+
+FragilityShield will support **benchmarking** of user-provided models.  The design:
+
+- Use the same experiment configuration framework: allow selecting multiple model plugins for the same portfolio/dataset.
+
+- Run each model on the selected data (e.g. predict returns or class labels), compute its evaluation metrics and robustness tests.
+
+- Record side-by-side comparison: e.g. table of MAE/ROC by model, plus sub-panels for sensitivity to key assumptions.
+
+- Control for preprocessing: e.g. if one model requires scaling, ensure others use compatible pipeline. Possibly require all to operate on raw features.
+
+- Log: model name, code version/commit, dependencies, training/hyperparam details (if available).
+
+- Provide visualizations: e.g. bar charts of metric values per model, or ROC curves overlay.
+
+This allows “apples-to-apples” comparison of proprietary versus open-source algorithms.  It's important to note that models may have differing semantics (some output probabilities, some classes), so metrics should be chosen appropriately for each type.
+
+## 15. SDK and Plugin Contracts
+
+We define stable interfaces (in Python) for extensions. Major plugin categories:
+
+1. **Data Provider (Market Data):** Methods: `get_price_series(symbol, start_date, end_date)` and/or `get_all_instruments()`. Configuration schema: API keys, endpoints.
+
+2. **Model (Financial or ML):** Base class with metadata (id, version, input schema, output schema, type). Key method: `predict(input_data) -> output_data` (or `evaluate(dataset)`). The input/output could be pandas DataFrames or dicts. Models must declare if they are deterministic or stochastic (seedable). For ML models, a `train()` method may be optional (for benchmarking, or external, we assume model is pre-trained).
+
+3. **Risk Metric:** Encapsulates a function computing a metric. Methods: `compute(portfolio, returns)` returning a numeric value or DataFrame. Declares required inputs (e.g. expects returns DataFrame, conf.level). Example: `HistoricalVaR(confidence=0.95)` plugin.
+
+4. **Assumption Attack:** Method `apply(inputs) -> new_inputs` plus `measure(outputs_base, outputs_new) -> impact`. For example, `MissingDataAttack(rate=0.1)` removes 10% of data then reruns model. Must declare what data it affects (price data, returns, weights).
+
+5. **Scenario Engine:** E.g. `SectorShockScenario(sector='Banking', shock_pct=-10)`. Method `apply(portfolio)`.
+
+6. **Validation Test:** For plugin conformance: takes code reference and runs internal checks.
+
+Each plugin must include metadata (identifier, version, supported interface version). Dependencies declared (e.g. requires TensorFlow, uses GPU). 
+
+**Plugin Lifecycle (Sec.6.3):** Discovery (look in plugins folder), Registration (user selects and configures in UI or JSON), Validation (e.g. schema check against contract), Enablement. When executed, record provenance. If a plugin fails (crash or invalid output), it should return an error status not crash the entire system.
+
+## 16. Example: Custom Model Adapter
+
+Consider a user has a custom Python model `MyRiskModel` in `my_risk_model.py`.  They would implement an adapter by subclassing a base class:
+
+```python
+
+from fragilityshield.sdk.models import BaseRiskModel
+
+class MyRiskModel(BaseRiskModel):
+
+    identifier = "my_risk_model_v1"
+
+    input_schema = {"prices": "DataFrame", "weights": "Series"}
+
+    output_schema = {"VaR": "float", "ExpectedShortfall": "float"}
+
+    def predict(self, inputs):
+
+        prices = inputs['prices']
+
+        weights = inputs['weights']
+
+        # Compute returns
+
+        returns = prices.pct_change().dropna()
+
+        var = compute_historical_var(returns.dot(weights), alpha=0.95)
+
+        cvar = compute_expected_shortfall(returns.dot(weights), alpha=0.95)
+
+        return {"VaR": var, "ExpectedShortfall": cvar}
+
+```
+
+This model plugin would be registered via the SDK or UI, and then available as a selectable model in experiments.  FragilityShield would validate that its `input_schema` matches expected (e.g. price series available) before running.
+
+*(This is conceptual; in a real implementation we’d put this class in a plugin package and include a `plugin.json` metadata.)*
+
+## 17. Example: Custom Assumption-Attack Plugin
+
+E.g. an attack that simulates a 10% systematic underpricing:
+
+```python
+
+from fragilityshield.sdk.attacks import BaseAttack
+
+class UnderpricingAttack(BaseAttack):
+
+    identifier = "underpricing_10pct_v1"
+
+    description = "Increase all asset prices by 10% (simulate optimistic bias)."
+
+    def apply(self, portfolio_data):
+
+        new_data = portfolio_data.copy()
+
+        new_data['price'] *= 1.10
+
+        return new_data
+
+    def measure(self, baseline_outputs, attacked_outputs):
+
+        return attacked_outputs['VaR'] - baseline_outputs['VaR']
+
+```
+
+This attack takes the baseline `portfolio_data` (with prices, weights, etc.), modifies it, and reruns the model.  The `measure` function extracts the VaR difference.  Such a plugin would integrate into the Fragility Lab. 
+
+## 18. Experiment Configuration Schema
+
+User experiments are defined in YAML/JSON.  A draft schema:
+
+```yaml
+
+experiment:
+
+  name: "portfolio-fragility-demo"
+
+  portfolio: "sample-nse-portfolio"    # ID of portfolio in system
+
+  dataset: "nse-sample-prices"        # market data reference
+
+  model: "historical-risk-model-v1"   # model plugin ID
+
+  metrics:
+
+    - volatility
+
+    - historical_var
+
+    - expected_shortfall
+
+    - max_drawdown
+
+  scenarios:
+
+    - banking_sector_shock
+
+    - tech_sector_shock
+
+  attacks:
+
+    - missing_data_5pct
+
+    - window_length_short
+
+    - alt_volatility_estimator
+
+    - correlation_regime_shift
+
+  validation:
+
+    - formula_reference_tests
+
+    - input_consistency
+
+    - reproducibility_check
+
+  reporting:
+
+    formats:
+
+      - html
+
+      - csv
+
+```
+
+Each field is validated: e.g. `metrics` must be known metric IDs or names, `scenarios` must exist in registry, etc.  Defaults: if `formats` missing, use HTML only.  Errors in config (unknown ID) should be caught before running.  The JSON schema (for programmatic validation) is defined in the code and enforced by CLI/UI.
+
+*(This YAML is an example. Actual schema will be implemented in code for validation.)*
+
+## 19. API Specification
+
+We design a versioned REST API (JSON) for core resources:
+
+- **Portfolios**  
+
+  - `GET /api/v1/portfolios` – list portfolios.  
+
+  - `POST /api/v1/portfolios` – create (with JSON of holdings).  
+
+  - `GET /api/v1/portfolios/{id}` – get details (holdings, value).  
+
+  - `PUT /api/v1/portfolios/{id}` – update holdings.  
+
+  - `DELETE /api/v1/portfolios/{id}` – delete.
+
+- **Models**  
+
+  - `GET /api/v1/models` – list registered model plugins.  
+
+  - `POST /api/v1/models` – register a new model (JSON including plugin info).  
+
+  - `GET /api/v1/models/{id}` – get metadata.  
+
+  - `DELETE /api/v1/models/{id}` – unregister (only if not in use).
+
+- **Data Sources** (market data, datasets)  
+
+  - `GET /api/v1/datasets` – list available datasets (e.g. “nse-prices-2020”).  
+
+  - `POST /api/v1/datasets` – upload CSV/Parquet (with metadata).  
+
+  - `GET /api/v1/datasets/{id}` – info or sample.  
+
+  - `DELETE /api/v1/datasets/{id}`.
+
+- **Experiments**  
+
+  - `POST /api/v1/experiments` – start new (body=experiment config). Returns experiment ID.  
+
+  - `GET /api/v1/experiments/{id}` – status and metadata (config, timestamps).  
+
+  - `GET /api/v1/experiments/{id}/results` – get results (JSON of all outputs).  
+
+  - `GET /api/v1/experiments/{id}/download?format=pdf` – download report.  
+
+  - `GET /api/v1/experiments` – list past runs with filters (by portfolio, date).  
+
+- **Validation Tests**  
+
+  - `GET /api/v1/validation/tests` – list available test suites.  
+
+  - `POST /api/v1/validation/run` – run selected tests (input: test IDs, target model/portfolio). Returns test report.
+
+- **Plugins** (optional)  
+
+  - `POST /api/v1/plugins` – upload/register plugin package.  
+
+  - `GET /api/v1/plugins` – list (custom and built-in).  
+
+- **Auth/Health**  
+
+  - `POST /api/v1/auth/login` – exchange credentials for token.  
+
+  - `GET /api/v1/health` – service status.
+
+Common patterns: JSON error responses (`{error: "...", code:400}`). Pagination for list endpoints (limit/offset).  All API calls require a valid auth token (user/project-based, see Sec.26).  Idempotency: POST/PUT create new version; experiment re-POST runs again.  Rate limits: we expect low volume, but throttle if needed.
+
+*(This spec is conceptual. We will implement key endpoints for hackathon demonstration.)*
+
+## 20. Python SDK Design
+
+A public Python SDK allows programmatic use:
+
+```python
+
+from fragilityshield.sdk import Client
+
+client = Client(api_key="...", project="my-project")
+
+# Create portfolio from CSV
+
+portfolio = client.portfolios.create(name="Demo", csv_path="holdings.csv")
+
+# Register a custom model (given Python class)
+
+model_id = client.models.register(MyRiskModel, config={"version": "1.0", ...})
+
+# List available datasets
+
+datasets = client.datasets.list()
+
+# Configure and run experiment
+
+config = {
+
+  "portfolio": portfolio.id,
+
+  "dataset": "nse-sample",
+
+  "model": model_id,
+
+  "metrics": ["volatility", "historical_var"],
+
+  "scenarios": ["banking_shock"],
+
+  "attacks": ["missing_data_5pct"]
+
+}
+
+exp = client.experiments.run(config)
+
+# Poll status
+
+while exp.status not in ("completed","failed"):
+
+    sleep(1)
+
+    exp = client.experiments.get(exp.id)
+
+results = exp.get_results()
+
+# Compare runs
+
+other = client.experiments.get(exp.id)
+
+diff = exp.compare(other.id)
+
+```
+
+The SDK wraps the REST API (avoiding reinventing core logic). It includes helper classes for configuration (with validation) and parsing results. It should not duplicate server-side logic. It may also include utility functions (e.g. load CSV to portfolio).
+
+## 21. Operational Database Schema
+
+Use Catalyst Data Store (relational). Logical tables:
+
+- **portfolios**: `id (PK)`, `name`, `created_at`, `currency`, etc.
+
+- **holdings**: `id, portfolio_id (FK)`, `instrument_id`, `quantity`, `entry_price`, `latest_price`, etc.
+
+- **experiments**: `id`, `name`, `portfolio_id (FK)`, `dataset_id (FK)`, `model_id`, `start_time`, `end_time`, `status`, `config_yaml`, `fragility_score`, `report_url`, etc.
+
+- **metrics**: For each experiment, store results. Could be wide or normalized:
+
+   - Table `risk_metrics`: `id`, `experiment_id`, `metric_name`, `value`, `unit`.
+
+   - Table `attack_metrics`: `id`, `experiment_id`, `attack_id`, `metric_name`, `baseline`, `attacked`, `delta`.
+
+- **plugins**: `id`, `type`, `name`, `version`, `metadata_json`.
+
+- **datasets**: `id`, `name`, `type (market, file, etc)`, `url/path`, `version`, `created_at`.
+
+- **data_registry**: catalog of instruments and metadata (e.g. NSE stock list, sectors).
+
+- **validation_results**: `id`, `experiment_id`, `test_name`, `status`, `details`.
+
+Indexes: on foreign keys. Partitioning: time/date fields for experiments if needed.  Experiments table may grow; possible archiving strategy (only keep last N runs per user).
+
+Analytical OLAP tables (Sec.22) will hold time-series or aggregated data, separate from these.
+
+## 22. Analytical Warehouse and Data Lake Design
+
+**Option A (MVP):** Use Catalyst’s built-in OLAP (Data Store) as described. We can create OLAP tables such as:
+
+- **market_prices**: partitioned by date/instrument, storing historical price series for assets (for high-frequency or long history, careful with volume).
+
+- **portfolio_snapshots**: daily value snapshots for portfolios.
+
+- **risk_time_series**: e.g. daily VaR, vol for each portfolio/experiment.
+
+- **attack_results**: flattened view for easy querying (experiment, attack, metric, impact).
+
+**Data Lake (Stratus):** Raw data files:
+
+- Raw downloaded price histories (e.g. Parquet of NSE daily prices).
+
+- Uploaded user CSVs/Parquets of portfolios.
+
+- Model artifacts (serialized models, e.g. ML pickles) if needed.
+
+- Report PDFs/HTML.
+
+**Schema Notes:** 
+
+- Datasets and models are versioned: store a version tag or hash.
+
+- For large series (tick data, minute bars) skip in MVP. Use daily only.
+
+- Partition `market_prices` by date or instrument to improve query speed.
+
+- Use S3-like storage paths in Stratus (e.g. `bucket/assets/NSE-XYZ/2024-10-10.csv`).
+
+## 23. Data Ingestion and Lineage
+
+Data workflows:
+
+- **Source data acquisition:** For sample/institutional use, either load open NSE data (e.g. from YahooFinance) into Stratus via ingestion pipeline. Document source/time of fetch.
+
+- **Upload flow:** Users can upload CSV/Parquet for historical prices or portfolios. On upload, compute a hash (SHA256) and store as `datasets` reference, to ensure reproducibility (if same data re-uploaded, detect identical).
+
+- **Schema validation:** Check CSV for required columns (Date, Open/Close, etc) or holdings columns.
+
+- **Normalization:** Align timestamps to UTC, enforce consistent format (ISO dates). Adjust for splits/dividends if data provided (or note absence).
+
+- **Deduplication:** If same data file uploaded twice, re-use existing dataset entry by hash.
+
+- **Updates:** For live market integration, schedule periodic ingestion (e.g. daily cron from Upstox) to append new rows to `market_prices` (Idempotent by date).
+
+- **Lineage:** For every experiment, record dataset version (hash or date range used) and portfolio version (snapshot at run time).  
+
+- **Retention:** Keep raw source data indefinitely, processed copies as needed. Possibly purge intermediate temp tables after finishing ingestion (not needed if using Stratus).
+
+- **Timezone:** India markets use IST (UTC+5:30). Convert timestamps accordingly. Ensure corporate actions (ex-div dates) handled in local date.
+
+(Avoid storing unneeded data: e.g. no need to store every tick for demo. Use daily close prices as minimal).
+
+## 24. Storage and Analytical Query Adapters
+
+Interaction with analytical storage:
+
+- Use **Data Store SDK** (Python) to query OLAP tables with filters (date ranges, portfolios). ZCQL is mostly SQL-like with restrictions.
+
+- Build a storage adapter interface so core code calls e.g. `db.query(table, filters)` rather than raw SQL. This allows swapping a future warehouse (Snowflake, BigQuery) if needed.
+
+- For object storage, use Catalyst SDK (similar to boto3 interface). Possibly cache small frequently used objects in Data Store to avoid repeatedly hitting Stratus.
+
+Query patterns:
+
+- Fetch time series of risk metrics for charts: use OLAP query grouped by date.
+
+- Join portfolio holdings with market data for current value: can do in Python or via query.
+
+- Experiment comparisons: join risk_metrics on experiment IDs.
+
+- Fragility heatmap: pivot attack results into matrix (do in Python after fetching raw).
+
+- Validation summary: group-by test status.
+
+No proprietary query language beyond ZCQL (Catalyst DSL) and Python. Future: if external warehouse used, implement adapter.
+
+## 25. Experiment Provenance Model
+
+Every experiment run records:
+
+- **Dataset info:** IDs and version (hash, timestamp) of market and fundamental data used.
+
+- **Portfolio version:** perhaps a snapshot ID (hash of input data).
+
+- **Model info:** plugin ID, version, source code hash or registry ref.
+
+- **Plugin versions:** all attacks/metrics used.
+
+- **Experiment config:** full YAML stored.
+
+- **Catalyst environment:** app version, function IDs, Python lib versions (pandas, numpy).
+
+- **Random seed:** store seed if any randomness (e.g. Monte Carlo for VaR).
+
+- **Timestamps:** start/end, duration.
+
+- **Output references:** hash or location of output artifacts (tables, files).
+
+  
+
+Also record external service calls (if any) – e.g. if Upstox used, record token ID (not actual key) and date of data fetch.  
+
+If using external ML APIs, note API endpoint and model used, but we can’t fully preserve their environment.
+
+Do **not** promise bit-for-bit reproducibility if environment changes. E.g. if market data provider updates historical data (rare), note divergence. Mark on provenance if any step was *inconclusive*.
+
+## 26. Security and Secrets Management
+
+- **Authentication/Authorization:** Use Catalyst’s built-in user accounts or OAuth for project access. Possibly integrate Zoho OAuth for user login. Each API call requires bearer token. Enforce role-based access: e.g. only experiment owner or shared workspace can view results.
+
+- **Workspace Isolation:** Catalyst isolates projects. All data (DS, Stratus) is project-scoped. Ensure multi-user setup creates separate Catalyst projects or uses row-level sharing with user IDs.
+
+- **Credential Storage:** API keys (Upstox tokens, external services) are stored in Catalyst’s secure environment variables or secrets vault, not in code. Do not expose them to client or logs. 
+
+- **Encryption:** Data Store and Stratus encrypt data at rest. Use HTTPS (TLS) for all data in transit (Catalyst endpoints are HTTPS by default).
+
+- **Input Validation:** Check all user inputs (file uploads, config) against a schema. Limit upload file size. Reject malicious content (scan CSV for invalid format).
+
+- **Dependency Pinning:** Requirements (pandas, numpy, etc) are pinned to specific versions to avoid surprises. Keep an eye on CVEs. Possibly use `pip audit`.
+
+- **Least Privilege:** Grant functions only the permissions needed. For instance, a function that runs risk metrics doesn’t need to delete portfolios.
+
+- **Network Egress:** By default, Catalyst can call external APIs. Be aware that calling unknown URLs could leak data. Document which fields are sent out (e.g. for Upstox only send instrument tokens).
+
+- **Sandboxing Plugins:** If allowing user plugins (Python code), ideally run them in isolated processes/containers. Without real containers, at least restrict these functions’ memory/time and use Python `exec` in a limited namespace. This is advanced; MVP may trust official plugins only.
+
+- **Audit Logging:** Log significant actions (create portfolio, run experiment) with user ID, timestamp. Catalyst has some audit trail but may need manual logging to DS table.
+
+- **Rate Limits/Quotas:** Enforce reasonable API rate limits per user to prevent abuse (e.g. one user not hogging).
+
+- **Sensitive Data:** If user uploads sensitive data (e.g. private financials), it resides in Catalyst. Ensure compliance: do not display it to others.
+
+Security stance: treat third-party plugins/code as *untrusted* unless signed. For custom model execution, consider running in separate function with resource caps or even Kubernetes (future).
+
+## 27. Plugin Isolation Strategy
+
+Because plugins may contain arbitrary code:
+
+- Run custom plugins in dedicated functions with limited resources. For instance, when invoking a plugin model/attack, spawn a new function call specific to that plugin. This naturally isolates via process/container.
+
+- Use try/except around plugin calls to catch errors without crashing main engine.
+
+- If possible, use OS-level sandboxing: Catalyst currently does not specify, but relying on function memory limits (up to 512MB) will contain runaway memory. CPU usage is also capped indirectly by memory.
+
+- Validate plugin metadata before enabling (check for suspicious attributes).
+
+- Maintain plugin registry admin-controlled (only trusted users can upload/approve plugins).
+
+- For severe cases, consider running plugins on a separate service (e.g. a worker queue that can be drained).
+
+For MVP, we simply run plugins as part of functions, and rely on code review (we deliver an open-source repo, so plugin code is visible).
+
+## 28. Frontend Navigation and Pages
+
+**Overall nav bar:**
+
+1. **Overview**: Dashboard with summaries (charts of recent experiment metrics, warnings).
+
+2. **Portfolios**: Manage portfolios (list/create/delete), view selected portfolio composition, top holdings, allocation charts.
+
+3. **Risk Lab**: Show portfolio returns plot, compute and display current risk metrics (vol, VaR, etc.) in metric cards.
+
+4. **Scenario Lab**: Define scenario, view results as chart/table. Buttons to add/remove scenarios.
+
+5. **Fragility Lab**: List assumption attacks (with checkboxes), run fragility audit, show ranked impacts (bars) and detail panel for selected attack.
+
+6. **Validation Lab**: Run tests on portfolio/model; display table of tests and statuses.
+
+7. **ML Testing**: (If ML model loaded) run and show ML evaluation; e.g. scatterplot actual vs predicted, ROC curve.
+
+8. **Benchmarking**: Select multiple models, run experiments, show comparative table.
+
+9. **Experiments**: List saved experiments; options to run new, view details (inputs, outputs).
+
+10. **Reports**: Download or view generated reports (with filter by experiment).
+
+11. **Data Sources**: Configure connectors (e.g. Upstox credentials) and see dataset inventory.
+
+12. **Plugins/SDK**: List installed models/attacks; buttons to upload new plugin or view documentation of SDK.
+
+13. **Warehouse/Analytics**: (If Zoho or external used) link to BI dashboards or custom query.
+
+14. **Settings**: Manage API keys (encrypt input), user preferences, system info.
+
+Each page includes breadcrumbs and context.  For example, in **Risk Lab**, clearly show which portfolio and dataset are active.  Loading spinners while data fetch, and friendly error if data incomplete (“No historical prices for X”).
+
+Pages should support mobile but mainly target desktop (data visualizations).
+
+Accessibility: use alt text for images, ensure keyboard navigation, color-blind friendly palettes (color + pattern).
+
+## 29. Visualization Specifications
+
+Charts and visuals (in both UI and reports):
+
+- **Metric Cards:** Key statistics with value, unit (e.g. “VaR (95%) = 1.2%”, plus maybe a small sparkline of recent trend).
+
+- **Allocation Pie/Bar Charts:** Portfolio by asset/sector share. Label sectors for clarity.
+
+- **Concentration Bar:** HHI gauge or numeric.
+
+- **Time Series Plots:** Portfolio value over time (line chart); rolling volatility chart.
+
+- **Correlation Matrix:** Heatmap grid with colors (with values on hover).
+
+- **Sector Exposure:** Bar chart of weight by sector.
+
+- **Scenario Result:** Bar chart or table showing loss per asset/sector.
+
+- **Fragility Attack Bar Chart:** Bars of metric change per attack (with text labels).
+
+- **Waterfall Chart:** If multiple independent impacts, show additive contributions (but caution about non-additivity).
+
+- **Heatmap:** e.g. attack vs metric sensitivity (color-coded % change).
+
+- **Validation Table:** Test name vs status (✔/⚠️/❌ icons) and short message.
+
+- **Experiment Timeline:** maybe a timeline or list of experiments with their key metrics.
+
+- **Downloadable Report:** Assemble these figures into pages, with textual captions (auto-generated from results).
+
+Implement with a JS library (e.g. D3, Chart.js, Plotly).  All charts should export to PNG/SVG in report.  
+
+Ensure state handling: disabled buttons if no portfolio loaded, clear error overlays if config invalid.
+
+## 30. Testing Strategy
+
+We will apply rigorous testing at all layers:
+
+- **Unit Tests:** For calculation functions (risk formulas, scenario application). Example: given fixed returns, VaR calculation yields known output. Write tests using pytest (or unittest) covering edge cases (zero returns, constant returns, large returns).
+
+- **Property Tests:** Use Hypothesis to generate random returns and check properties (e.g. VaR at 0% = 0, VaR at 100% = max loss).
+
+- **Integration Tests:** Test end-to-end flows: e.g. import a sample portfolio, run experiment, compare results to saved expected JSON.
+
+- **API Contract Tests:** Use schemas (OpenAPI/JSON Schema) and tools to ensure API returns correct format. Use pytest + requests to call local dev server.
+
+- **Frontend UI Tests:** If time permits, use Selenium or Cypress to simulate user tasks (load portfolio, click run, see chart). Minimal for MVP.
+
+- **SDK Adapter Tests:** Test each plugin adapter with mock data to ensure it conforms.
+
+- **Data Pipeline Tests:** Inject sample data with known issues (duplicate rows, missing dates) and ensure pipeline normalizes or flags appropriately.
+
+- **Warehouse Consistency:** Insert known data into OLAP and query via SDK, check results.
+
+- **Reproducibility Tests:** Record experiment config, rerun and verify outputs within tolerance. Use fixed seeds for random steps.
+
+Define test datasets: e.g. a synthetic portfolio of 2 assets with 5 days of data (known answers). Use as fixtures. Set strict numeric tolerance (e.g. 1e-6 for floats, except where stochastic).
+
+Coverage targets: aim for >80% for core calculation modules. However, emphasize **meaningful tests** over coverage %. Use coverage to identify untested logic (skip trivial getters).
+
+Set up CI (GitHub Actions) to run tests on each PR and before demo.
+
+## 31. CI/CD and Deployment Workflow
+
+- **Version Control:** All code in Git (e.g. GitHub). Use branches for features, enforce PR reviews (even if solo team).
+
+- **Continuous Integration:** On push/PR, run lint (flake8), run Python tests, and if UI code, lint/compile.
+
+- **Deployment:** After tests pass, manual or automated trigger to Catalyst:
+
+  - Use Catalyst CLI in CI to deploy functions, data store schema, and AppSail app.
+
+  - Tag releases (v0.1-MVP, etc).
+
+- **Repeatable Builds:** Dockerize build environment if needed (for local dev).
+
+- **Rollback:** Keep previous deployment package (Catalyst may allow versioning of functions).
+
+- **Credentials:** Store Catalyst API keys in CI secrets, not in code.
+
+- **Release Criteria:** The hackathon demo build must pass all acceptance tests (Sec.36) on a clean workspace with sample data.
+
+## 32. Observability, Logging, and Recovery
+
+- **Structured Logs:** Functions log structured JSON (timestamp, level, message). Include context (experiment ID, function name).
+
+- **Metrics:** Collect custom metrics if possible (Catalyst may not natively support Prometheus, but can log time taken, success counts).
+
+- **Health Checks:** Provide a `/health` API that checks DB connectivity, storage access, and external API status (e.g. Upstox reachable).
+
+- **Job Monitoring:** Track queued/running jobs, timeouts. UI should display “Experiment running” with spinner.
+
+- **Alerts:** Not in MVP, but plan to monitor function errors (Catalyst console has invocation error counts).
+
+- **Backup/Recovery:** Catalyst likely backs up Data Store; for user data backup plan specify periodic export to Stratus.
+
+- **Schema Migrations:** If DB schema evolves (adding columns), handle via Catalyst CLI’s migration tools (not well-documented; might use separate migration scripts).
+
+- **Separation of Environments:** Use separate Catalyst projects for dev, staging, production to avoid collision. Configure separate credentials.
+
+- **Cost Monitoring:** Since Catalyst has costs, monitor usage (queries, function invocations). Perhaps log usage in DB.
+
+## 33. Cost and Capacity Estimates
+
+Based on Catalyst documentation and typical quotas (rough estimates):
+
+- **Functions:** Assume ~ $0.00001667 per GB-second (similar to AWS), 256 MB * 1 s = 0.25 GB-s. If one experiment has ~100 invocations of 5s, that's 125 GB-s ~ $0.002. Negligible for demo.
+
+- **Data Store:** Likely charged per row or per query. With small data (hundreds of rows), cost ~free tier. If many experiments, ensure to purge old.
+
+- **Stratus:** S3-like; storing ~100MB of CSV & reports. Cost ~ cents/month.
+
+- **Upstox API:** Upstox market data is free for retail (subject to SEBI regulations) but requires internet egress. If used moderately, no cost.
+
+- **Traffic:** UI loads static files and JSON; minimal.
+
+Overall capacity needed: <0.1 CPU-hours per experiment, <100 MB storage (MVP).
+
+Budget-wise, with Catalyst’s free credits, this should fit free tier. Document that actual costs must be checked if large-scale usage is needed.
+
+## 34. Risk Register and Mitigation
+
+Key risks:
+
+- **Scope Creep:** Too many incomplete features. Mitigation: strictly follow MVP list.
+
+- **Plugin Compatibility:** Some Python libs (e.g. SciPy) might not run in Catalyst’s Python. Mitigation: test early; if not, use lighter libs or external service.
+
+- **Upstox Integration:** May fail due to API changes. Mitigation: treat as optional; use sample data otherwise.
+
+- **Data Quality:** Indian market data may have missing days. Mitigation: warn user; fallback to interpolation.
+
+- **Performance Bottleneck:** If OLAP queries slow. Mitigation: ensure indexes, use bulk queries, or schedule analysis off-peak.
+
+- **Reproducibility:** Floating-point differences. Mitigation: use fixed random seeds, explain tolerances in reports.
+
+- **User Credentials Exposure:** Mitigation: follow Sec.26, do not log secrets.
+
+- **Unrealistic Fragility Score:** Danger of misinterpretation. Mitigation: emphasize limits in UI text.
+
+Confidence levels: 
+
+- Verified capabilities (documented): e.g. Catalyst functions support Python (high confidence).
+
+- Proposed/design: e.g. fragility score method (medium confidence, needs validation).
+
+- Unverified: e.g. actual performance of Catalyst OLAP under load (unknown).
+
+## 35. 48-Hour Hackathon Implementation Plan
+
+### Day 1 (First 24h)
+
+1. **Setup & Foundations (2h):** Scaffold repository; set up Catalyst project and CLI; define data models (portfolios, experiments) in Data Store.
+
+2. **Portfolio Lab (4h):** Implement portfolio import and CRUD. Use sample NSE CSV. Show holdings table in UI.
+
+3. **Market Data (4h):** Load sample price data into Stratus or Data Store. Connect to portfolio for valuation. Compute asset returns.
+
+4. **Risk Metrics (8h):** Implement basic risk calculations (vol, historical VaR, CVaR, drawdown). Unit tests for formulas. API function `computeRisk`.
+
+5. **Risk Lab UI (2h):** Show volatility, VaR, CVaR for sample portfolio. Include tooltips/citations for formulas.
+
+6. **Scenario Lab (4h):** Hard-code two scenarios (Banking -20%, IT -10%). Apply to portfolio, recompute VaR. UI to apply and display difference. Attribution by sector.
+
+7. **Database Persistence (2h):** Save risk results and scenario results in Data Store.
+
+8. **Begin Fragility Lab (4h):** Implement 3 attacks: (a) remove last 5% of data (stale data), (b) shorten lookback by half, (c) add simple transaction cost (e.g. -0.5% returns). Compute metric changes. Basic UI list + charts.
+
+### Day 2 (Next 24h)
+
+9. **Validation Panel (3h):** Write a few reference tests (e.g. known VaR) and input checks. Show pass/warning icons in UI.
+
+10. **Experiment Studio (3h):** UI to configure experiment (portfolio, scenario, attacks), run and display results with provenance (show JSON config summary). Save config in DB.
+
+11. **Reporting (3h):** Generate HTML report (can template engine) including key charts/tables. Enable CSV export of metrics. 
+
+12. **Plugin Example (3h):** Create one custom model plugin (e.g. `MeanReversionModel` stub) and one attack plugin in code. Show SDK usage (or UI form).
+
+13. **Analytics Storage (2h):** Define OLAP table for time-series of VaR. Insert baseline and scenario VaR by date, enable trend chart.
+
+14. **UI Polish & Error Handling (3h):** Add loading spinners, empty states, fix bugs. Ensure color-blind safe charts.
+
+15. **Testing & QA (4h):** Run test suite, fix issues. Simulate scenario in demo script. 
+
+16. **README & Docs (4h):** Write user guide, code comments. Document data sources and architecture choices with citations. Final rehearsal of demo.
+
+*(This assumes a single team working in parallel on back/UI. Time allocations are estimates. Fallback: if stuck on a piece, simplify or skip.)*
+
+## 36. Acceptance Criteria
+
+- **Portfolio Loaded:** The sample ₹10L NSE portfolio can be loaded (no errors) and shows correct composition and concentration (e.g. HHI).
+
+- **Risk Metrics Displayed:** The baseline risk metrics (vol, VaR, CVaR, drawdown) are computed and match hand-calculation on sample data.
+
+- **Scenario Application:** Applying Banking -20% & IT -10% scenario updates the metrics and shows the P&L impact per sector.
+
+- **Fragility Audit:** At least 5 assumption attacks have been applied automatically, and their impacts (VaR change) are listed and plotted. The top-impact attack is identified.
+
+- **Validation Evidence:** The UI shows results of validation tests (some pass/warnings if realistic) for the calculations.
+
+- **Benchmarking Demo:** Two models (e.g. historical and alt) can be tested side-by-side on a simple dataset, with metrics table (even minimal).
+
+- **Experiment Save/Load:** After running, experiment config is saved and can be retrieved by name, and re-running produces identical results (within tolerance).
+
+- **Report Export:** An experiment report (HTML or PDF) can be downloaded and contains readable charts/tables of results.
+
+- **Plugin Example:** A developer can see an example of registering a new model or attack plugin (via documentation or UI).
+
+- **Reproducibility:** Clearing the database and re-running the demo (with sample data) yields the same figures (within numeric tolerance).
+
+- **No Hardcoded Secrets:** The demo runs without needing any API keys (i.e. all features work with built-in data).
+
+The demo should make it clear that this is a *laboratory* (e.g. by showing config YAML or test details). The judge should understand limitations (e.g. color legend, tooltips explain meaning).
+
+## 37. End-to-End Demonstration Script
+
+1. **Open FragilityShield Web UI.** Show landing/overview page.
+
+2. **Load Sample Portfolio.** Click “Portfolio Lab”, select built-in ₹10L NSE portfolio (e.g. from dropdown). Show holdings list, asset allocation chart, HHI value.
+
+3. **View Baseline Risk.** Go to Risk Lab. Confirm portfolio is selected. Metrics (vol, VaR, CVaR, drawdown) are displayed with values. Show correlation matrix.
+
+4. **Apply Stress Scenario.** Go to Scenario Lab. Choose “Banking -20% + IT -10%” preset. Run scenario. Display new P&L chart and updated VaR (e.g. “VaR increased from ₹X to ₹Y”). Check sector breakdown shows Banking loss largest.
+
+5. **Run Fragility Audit.** Go to Fragility Lab. Click “Run Audit”. Show list of attacks with their VaR impact (bar chart and table). Highlight top assumption (e.g. “shorter window increases VaR by 30%”). 
+
+6. **Compare Baseline vs Attacked.** Click an attack row; show in UI baseline vs attacked metrics side-by-side.
+
+7. **Inspect Validation.** Go to Validation Lab. Show a small table of tests (e.g. “VaR formula test: PASS”, “Input completeness: WARNING (1 missing price)”). Explain warning if any.
+
+8. **Model Benchmark (if implemented).** Go to Model Testing Lab. Show two models selected, run on sample data. Display small table of their MAE or ROC.
+
+9. **Save Experiment.** Go to Experiment Studio. Name the experiment “demo1”. Show it listed in Experiments page with timestamp. 
+
+10. **Export Report.** In Experiments, click the recent run, then “Export → PDF”. Open the report, scroll to see charts and tables.
+
+11. **Register Custom Plugin (Dev mode).** Show in UI or CLI how to register a dummy model: e.g. open “Plugins” page, upload a sample plugin file (or in docs, show Python code from SDK section).
+
+12. **Demonstrate Reproducibility.** (Optional) Clear results and re-run “demo1” by loading the saved config. Confirm the output matches (within small diff) earlier run.
+
+13. **Explain Lab Concept.** While navigating, emphasize: “This is a lab, not an investment recommendation. We can see how each assumption affects outcomes, and check our math via validation tests.” 
+
+No external API keys used – everything with sample data. Stress that UI allows “Bring your own model/API” (e.g. a disabled option to connect Upstox shows up as future). 
+
+*(This script covers the judge’s checklist in Sec.20.)*
+
+## 38. Repository Structure
+
+```
+
+fragilityshield/
+
+├─ backend/            # Catalyst Functions (Python code)
+
+│   ├─ engine/         # Shared calculation engine (risk, ML, utils)
+
+│   ├─ api/            # HTTP function handlers
+
+│   ├─ jobs/           # Job functions for experiments
+
+│   ├─ data/           # Data models (ORM or ZCQL queries)
+
+│   ├─ plugins/        # Example plugin templates
+
+│   ├─ tests/          # Unit and integration tests
+
+│   ├─ requirements.txt
+
+│   └─ setup.py        # For packaging SDK if needed
+
+├─ frontend/           # Web UI (React or Angular)
+
+│   ├─ src/
+
+│   ├─ public/
+
+│   ├─ package.json
+
+│   └─ webpack.config.js
+
+├─ sdk/                # Python SDK code (client library)
+
+│   └─ fragilityshield/
+
+├─ docs/               # Architecture diagrams, user guide, developer docs
+
+├─ examples/           # Sample YAML configs, sample data files
+
+├─ scripts/            # Deployment scripts (e.g. catalyst deploy)
+
+├─ .github/            # CI workflows
+
+├─ README.md
+
+└─ LICENSE
+
+```
+
+Use a permissive license (Apache 2.0) to allow wide reuse, patent-safe. CONTRIBUTING.md with guidelines, CODE_OF_CONDUCT.md. Security issues report address.
+
+## 39. Documentation and Contribution Strategy
+
+- **User Guide:** In `docs/`, include:
+
+  - Quickstart (how to run demo).
+
+  - Definitions of metrics and tests (with references).
+
+  - API reference (auto-generated from code or written).
+
+  - Examples (portfolios, config YAML).
+
+  - Developer guide (how to add a plugin).
+
+- **Developer Contribution:** 
+
+  - Clear contribution guidelines (style, testing requirements). 
+
+  - Use issue tracker and labels (bug, feature, docs).
+
+  - Example: “To add a new risk metric, implement in `engine/risk_metrics.py` and register id in a config, then write tests.”  
+
+- **Community:** Encourage extension by providing sample plugins and a plugin marketplace could be future.
+
+## 40. Phased Roadmap
+
+- **Phase 1 (MVP):** *Working foundation* as above.
+
+- **Phase 2 (Depth):** ML model evaluation, benchmarking, SDK refinement, better lineage (dataset hashes), a couple more attacks (non-stationarity, noise).
+
+- **Phase 3 (Extensibility):** External connectors (e.g. other broker APIs), more risk metrics (CVaR variants, Beta, Sortino), user-defined scenarios, Zoho Analytics or external data warehouse support.
+
+- **Phase 4 (Hardening):** Multi-user auth/roles, Docker or container sandbox for plugins, drift monitoring (long-term), scheduled auto-evaluations, backup/disaster recovery, production scaling.
+
+Include versioning scheme (e.g. v1.0 for open-source release after hackathon).
+
+## 41. Independent Technical Critique
+
+- **Plug-and-Play:** We rely on well-defined Python interfaces for plugins. However, without a standard packaging format, true plug-and-play is limited. In MVP, plugins are manual; later, we might add dynamic discovery. The contracts are clear but adoption requires developer skill. We could improve by adopting [PyPI](https://pypi.org/) or entry-points for plugins.
+
+- **Model Independence:** The design does not lock to a single ML library. If a vendor only has, say, Java, they'd need an adapter. We can support any REST-based model or Python. Containerized execution could expand this.
+
+- **One Engine:** By using the same Python library in API/CLI, we avoid drift. This is verified by unit tests.
+
+- **Evidence vs Claims:** Our UI text emphasizes “tested under assumptions” and not “guaranteed”. Must ensure no wording suggests investment performance.
+
+- **Limitations Clarity:** We insert explanatory tooltips and report disclaimers (checked).
+
+- **Complexity Risk:** The blueprint is very ambitious. For 48h, we must trim features (we have tried). E.g. Zoho Analytics integration is out. Multi-user auth likely out of scope (Catalyst may handle per-project basis).
+
+- **Catalyst Feasibility:** We assume Catalyst Functions support required Python libraries (pandas, numpy, SciPy). **If not**, an alternative is to run heavy tasks in a container (AppSail custom runtime). We mark this as risk. Preliminary check: Catalyst docs say Flask/Django available, implying common libs work. We should test quickly in environment or trust that Python 3.10+ includes needed libs.
+
+- **Analytical DB:** Catalyst claims OLAP for “any scale” but without detail. For small hackathon data it's fine. For real big data, might need external (Phase 3).
+
+- **Fragility Score Validity:** Without firm methodology, our score is heuristic. A skeptical quant might question its meaning. We address by not overpromising.
+
+- **Reproducibility Limits:** If using Upstox live, results may differ next day (market data updated). We mitigate by snapshotting data in Stratus (for reproducible runs).
+
+- **Plugin Isolation:** Running arbitrary code is always risky. We rely on platform limits. For full security, containers or microservices per plugin would be needed (future work).
+
+- **Differentiation:** The strong technical differentiation is the Assumption Attack framework and experiment provenance. A judge might compare to existing model validators (QuantLib etc.) and ask “What is new?”. We highlight the integrated lab concept.
+
+- **Hackathon Scope:**  We removed speculation (market impact models, exhaustive ML tasks, high-end optimization) to focus on core flow. It may look feature-light, but demo path is end-to-end.
+
+- **Skeptic Reviews:** A quant would want to know if VaR is using correct returns (log vs simple) and if weights are static; we must specify. A cloud architect might doubt if functions can handle loops; we’ll use job functions. A judge will look for clear output differences, not just many charts.
+
+After this review, we reaffirm: focus demo on portfolio, risk, scenario, assumption testing, reproducibility and UI. 
+
+## 42. Implementation Checklist
+
+- [ ] Data architecture chosen (Catalyst DS/OLAP + Stratus) and design documented.
+
+- [ ] Core risk metrics implemented and validated (with citations for formulas).
+
+- [ ] Portfolio import/management working with sample NSE data.
+
+- [ ] Stress scenarios & fragility attacks implemented as per spec.
+
+- [ ] UI pages built with placeholders (progressive enhancement).
+
+- [ ] Experiment logging/provenance recorded.
+
+- [ ] Output report generation enabled.
+
+- [ ] Plugin framework sketched with one example each.
+
+- [ ] CLI/SDK minimal for demonstration.
+
+- [ ] Security checks (no exposed creds).
+
+- [ ] Tests written for main calculation code.
+
+- [ ] All required citations included.
+
+- [ ] Demo script tested end-to-end.
+
+**Sources:** Official Zoho Catalyst docs for cloud services; Investopedia/Northstar for risk metric definitions; Upstox Developer API docs for data integration.  Other details are design decisions informed by standard practices (explicitly indicated where not sourced).

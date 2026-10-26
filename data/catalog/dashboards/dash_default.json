@@ -1,0 +1,85 @@
+{
+  "dashboard_id": "dash_default",
+  "name": "Executive Risk & Quantitative Model Command Center",
+  "description": "Comprehensive quantitative workspace with tail risk, empirical distribution, risk contribution, and data lineage widgets.",
+  "is_default": true,
+  "tenant_id": "default_tenant",
+  "widgets": [
+    {
+      "widget_id": "w_risk_01",
+      "type": "portfolio_risk",
+      "title": "Tail Risk Summary (VaR & ES 95%)",
+      "width": 2,
+      "height_rows": 1,
+      "metric": "var_95",
+      "model_id": null,
+      "portfolio_id": null,
+      "parameters": {
+        "confidence_level": 0.95
+      },
+      "order": 0
+    },
+    {
+      "widget_id": "w_dist_02",
+      "type": "var_es_distribution",
+      "title": "Empirical Return Distribution & Tail Region",
+      "width": 2,
+      "height_rows": 1,
+      "metric": "empirical_distribution",
+      "model_id": null,
+      "portfolio_id": null,
+      "parameters": {},
+      "order": 1
+    },
+    {
+      "widget_id": "w_contrib_03",
+      "type": "risk_contribution",
+      "title": "Asset Marginal VaR Contribution",
+      "width": 2,
+      "height_rows": 1,
+      "metric": "component_var",
+      "model_id": null,
+      "portfolio_id": null,
+      "parameters": {},
+      "order": 2
+    },
+    {
+      "widget_id": "w_dd_04",
+      "type": "drawdown_stress",
+      "title": "Peak-to-Trough Drawdown Trajectory",
+      "width": 2,
+      "height_rows": 1,
+      "metric": "drawdown_series",
+      "model_id": null,
+      "portfolio_id": null,
+      "parameters": {},
+      "order": 3
+    },
+    {
+      "widget_id": "w_comp_05",
+      "type": "model_comparison",
+      "title": "Risk Model Benchmark (Historical vs Parametric vs EWMA)",
+      "width": 3,
+      "height_rows": 1,
+      "metric": "model_comparison_table",
+      "model_id": null,
+      "portfolio_id": null,
+      "parameters": {},
+      "order": 4
+    },
+    {
+      "widget_id": "w_prov_06",
+      "type": "data_provenance",
+      "title": "Market Data Provenance & Cryptographic Lineage",
+      "width": 1,
+      "height_rows": 1,
+      "metric": "freshness_card",
+      "model_id": null,
+      "portfolio_id": null,
+      "parameters": {},
+      "order": 5
+    }
+  ],
+  "created_at": "2026-10-26T00:26:40.684572+00:00",
+  "updated_at": "2026-10-26T00:26:40.684639+00:00"
+}

@@ -1,0 +1,97 @@
+{
+  "submission": {
+    "schema_version": "1.0.0",
+    "workspace_id": "ws_test_sprint9_1792965788872",
+    "experiment_id": "exp_dash_1792965788872",
+    "run_id": "ext_run_dash_1792965788872",
+    "model_id": "model_nifty_gbm_1792965788872",
+    "model_version": "1.0.0",
+    "dataset_id": null,
+    "dataset_version": null,
+    "target_lab": "forecasting",
+    "run_status": "completed",
+    "started_at": "2026-10-25T22:03:08.872756+00:00",
+    "completed_at": null,
+    "parameters": {},
+    "metrics": [
+      {
+        "metric_name": "rmse",
+        "observed_value": 0.0142,
+        "baseline_value": null,
+        "unit": "pct",
+        "sample_count": null,
+        "is_externally_reported": true,
+        "metadata": {}
+      }
+    ],
+    "predictions": [
+      {
+        "timestamp": "2026-10-25T15:30:00+05:30",
+        "target": "RET",
+        "predicted_value": 0.015,
+        "actual_value": 0.012,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-26T15:30:00+05:30",
+        "target": "RET",
+        "predicted_value": -0.005,
+        "actual_value": -0.006,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      }
+    ],
+    "artifacts": [],
+    "environment": {
+      "environment_type": "local_script",
+      "hostname": null,
+      "python_version": null,
+      "platform": null,
+      "git_commit": null,
+      "frameworks": {},
+      "extra": {}
+    },
+    "error_message": null,
+    "provenance_hash": "772491200eb2d0f37f09fdb9f35c732456ff4a429fb513bad85a794f5f28f9d1"
+  },
+  "registry_record": {
+    "run_id": "ext_run_dash_1792965788872",
+    "display_name": "model_nifty_gbm_1792965788872 on exp_dash_1792965788872",
+    "run_type": "external_forecasting",
+    "status": "completed",
+    "created_at": "2026-10-25T22:03:08.872756+00:00",
+    "completed_at": null,
+    "lab": "forecasting",
+    "is_external": true,
+    "source_environment": "local_script",
+    "model_id": "model_nifty_gbm_1792965788872",
+    "dataset_id": "unspecified",
+    "metrics": {
+      "rmse": 0.0142
+    },
+    "recomputed_metrics": {
+      "independent_rmse": 0.002236,
+      "independent_mae": 0.002,
+      "independent_directional_accuracy": 1.0,
+      "evaluated_sample_count": 2,
+      "verification_status": "INDEPENDENTLY_VERIFIED"
+    },
+    "parameters": {},
+    "predictions_count": 2,
+    "artifacts_count": 0,
+    "error_message": null,
+    "provenance_hash": "772491200eb2d0f37f09fdb9f35c732456ff4a429fb513bad85a794f5f28f9d1"
+  },
+  "recomputed_metrics": {
+    "independent_rmse": 0.002236,
+    "independent_mae": 0.002,
+    "independent_directional_accuracy": 1.0,
+    "evaluated_sample_count": 2,
+    "verification_status": "INDEPENDENTLY_VERIFIED"
+  }
+}

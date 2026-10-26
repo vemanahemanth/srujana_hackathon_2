@@ -1,0 +1,43 @@
+{
+  "model_id": "custom.ewma_risk",
+  "name": "Custom RiskMetrics EWMA Risk Model",
+  "category": "risk_estimation",
+  "version": "1.0.0",
+  "author": "quant_researcher",
+  "description": "Dynamic EWMA variance model with configurable decay factor lambda and Gaussian tail estimation.",
+  "capabilities": [
+    "var_95",
+    "expected_shortfall_95",
+    "annualized_volatility",
+    "risk_metric"
+  ],
+  "supported_labs": [
+    "risk",
+    "scenarios",
+    "model_validation",
+    "tournament",
+    "dashboards"
+  ],
+  "parameters": [
+    {
+      "name": "decay_factor",
+      "param_type": "float",
+      "default": 0.94,
+      "description": "EWMA lambda decay factor",
+      "min_value": 0.8,
+      "max_value": 0.99,
+      "choices": null
+    },
+    {
+      "name": "confidence_level",
+      "param_type": "float",
+      "default": 0.95,
+      "description": "VaR confidence level",
+      "min_value": 0.8,
+      "max_value": 0.999,
+      "choices": null
+    }
+  ],
+  "is_enabled": true,
+  "created_at": "2026-10-26T00:51:41.857579+00:00"
+}

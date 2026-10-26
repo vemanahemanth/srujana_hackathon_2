@@ -1,0 +1,47 @@
+{
+  "model_id": "model_nifty_gbm_1792953341705",
+  "name": "NSE Nifty Gradient Boosting Machine",
+  "version": "2.1.0",
+  "owner": "quant_test_suite",
+  "model_family": "regression_model",
+  "required_inputs": [
+    "returns"
+  ],
+  "expected_output_schema": {},
+  "supported_assets": [
+    "EQUITY",
+    "ETF"
+  ],
+  "supported_frequencies": [
+    "1D"
+  ],
+  "supported_horizons": [
+    "1D"
+  ],
+  "prediction_types": [
+    "risk_metric"
+  ],
+  "supported_labs": [
+    "risk",
+    "fragility",
+    "benchmarking"
+  ],
+  "supported_tests": [
+    "historical_var",
+    "volatility",
+    "lookback_sensitivity"
+  ],
+  "training_data_window": null,
+  "runtime_limits": {
+    "timeout_sec": 30.0,
+    "memory_mb": 1024
+  },
+  "known_limitations": [],
+  "unsupported_operations": [],
+  "is_deterministic": true,
+  "requires_seed": false,
+  "supports_historical_replay": true,
+  "supports_walk_forward": true,
+  "supports_out_of_sample": true,
+  "code_isolation_required": true
+}

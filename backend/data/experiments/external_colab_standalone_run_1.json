@@ -1,0 +1,64 @@
+{
+  "submission": {
+    "schema_version": "1.0.0",
+    "workspace_id": "default_workspace",
+    "experiment_id": "colab_standalone_exp",
+    "run_id": "colab_standalone_run_1",
+    "model_id": "standalone_model",
+    "model_version": "1.0.0",
+    "dataset_id": null,
+    "dataset_version": null,
+    "target_lab": "general",
+    "run_status": "completed",
+    "started_at": "2026-10-25T18:48:53.611587+00:00",
+    "completed_at": null,
+    "parameters": {},
+    "metrics": [
+      {
+        "metric_name": "rmse",
+        "observed_value": 0.005,
+        "baseline_value": null,
+        "unit": "",
+        "sample_count": null,
+        "is_externally_reported": true,
+        "metadata": {}
+      }
+    ],
+    "predictions": [],
+    "artifacts": [],
+    "environment": {
+      "environment_type": "google_colab",
+      "hostname": null,
+      "python_version": null,
+      "platform": null,
+      "git_commit": null,
+      "frameworks": {},
+      "extra": {}
+    },
+    "error_message": null,
+    "provenance_hash": "65dc528076d416969ac0866da951a7900c7cc78e59887cffe31647f58339c169"
+  },
+  "registry_record": {
+    "run_id": "colab_standalone_run_1",
+    "display_name": "standalone_model on colab_standalone_exp",
+    "run_type": "external_general",
+    "status": "completed",
+    "created_at": "2026-10-25T18:48:53.611587+00:00",
+    "completed_at": null,
+    "lab": "general",
+    "is_external": true,
+    "source_environment": "google_colab",
+    "model_id": "standalone_model",
+    "dataset_id": "unspecified",
+    "metrics": {
+      "rmse": 0.005
+    },
+    "recomputed_metrics": {},
+    "parameters": {},
+    "predictions_count": 0,
+    "artifacts_count": 0,
+    "error_message": null,
+    "provenance_hash": "65dc528076d416969ac0866da951a7900c7cc78e59887cffe31647f58339c169"
+  },
+  "recomputed_metrics": {}
+}

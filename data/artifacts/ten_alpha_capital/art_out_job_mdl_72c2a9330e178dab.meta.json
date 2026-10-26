@@ -1,0 +1,14 @@
+{
+  "artifact_id": "art_out_job_mdl_72c2a9330e178dab",
+  "tenant_id": "ten_alpha_capital",
+  "storage_key": "ten_alpha_capital/art_out_job_mdl_72c2a9330e178dab.bin",
+  "content_hash": "433c413b3ccae4b7d54cac4844f4fe3724178f60f96e511c8b10a680fc666e12",
+  "size_bytes": 671,
+  "media_type": "application/json",
+  "logical_type": "model_output_json",
+  "created_at": 1792915797.879701,
+  "job_id": "job_mdl_72c2a9330e178dab",
+  "experiment_id": null,
+  "metadata_json": {},
+  "expires_at": null
+}

@@ -1,0 +1,9 @@
+{
+  "model_id": "nifty_gbm_forecaster",
+  "trained_at": "2026-10-25T18:32:41Z",
+  "feature_importance": {
+    "momentum_10d": 0.35,
+    "rsi_14d": 0.28,
+    "volatility_20d": 0.37
+  }
+}

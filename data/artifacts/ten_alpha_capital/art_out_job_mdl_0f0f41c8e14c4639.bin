@@ -1,0 +1,23 @@
+{
+  "job_id": "job_mdl_97cb66446fe8ca8c",
+  "request_id": "req_025474ce0c002bd8",
+  "tenant_id": "ten_alpha_capital",
+  "user_id": "usr_quant_1",
+  "model_id": "risk_garch_v1",
+  "category": "risk_estimation",
+  "status": "succeeded",
+  "execution_mode": "trusted_local_research",
+  "exit_code": 0,
+  "execution_time_ms": 0.2568329800851643,
+  "output_payload": {
+    "var": 0.0208,
+    "expected_shortfall": 0.022,
+    "volatility": 0.013871126964500978
+  },
+  "reproducibility_hash": "4227c992c95f36021ed61aa1e8218e4b05f38b7dacb0c15883ec39bd4e4561bb",
+  "error_category": null,
+  "error_message": null,
+  "stdout": "",
+  "stderr": "",
+  "timestamp": 1792948272.850998
+}

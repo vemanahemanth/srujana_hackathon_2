@@ -1,0 +1,20 @@
+{
+  "dataset_id": "ds_test_nifty_hourly",
+  "name": "NIFTY 50 Intraday Hourly Benchmark",
+  "version": "1.0.0",
+  "file_path": null,
+  "format": "csv",
+  "row_count": 0,
+  "column_mapping": {},
+  "symbols": [
+    "NIFTY_50",
+    "RELIANCE"
+  ],
+  "timestamp_col": null,
+  "frequency": "1D",
+  "currency": "INR",
+  "fingerprint": "",
+  "created_at": "",
+  "provenance": {},
+  "validation_summary": {}
+}

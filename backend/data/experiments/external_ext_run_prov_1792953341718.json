@@ -1,0 +1,64 @@
+{
+  "submission": {
+    "schema_version": "1.0.0",
+    "workspace_id": "ws_test_sprint9_1792953341718",
+    "experiment_id": "exp_prov_1792953341718",
+    "run_id": "ext_run_prov_1792953341718",
+    "model_id": "model_nifty_gbm_1792953341718",
+    "model_version": "1.0.0",
+    "dataset_id": null,
+    "dataset_version": null,
+    "target_lab": "risk",
+    "run_status": "completed",
+    "started_at": "2026-10-25T18:35:41.719345+00:00",
+    "completed_at": null,
+    "parameters": {},
+    "metrics": [
+      {
+        "metric_name": "var_95",
+        "observed_value": -0.0215,
+        "baseline_value": null,
+        "unit": "pct",
+        "sample_count": null,
+        "is_externally_reported": true,
+        "metadata": {}
+      }
+    ],
+    "predictions": [],
+    "artifacts": [],
+    "environment": {
+      "environment_type": "local_script",
+      "hostname": null,
+      "python_version": null,
+      "platform": null,
+      "git_commit": null,
+      "frameworks": {},
+      "extra": {}
+    },
+    "error_message": null,
+    "provenance_hash": "697890791806cf12551ae5e208f26f7a6423a7703041d1a6f90a850c20de2410"
+  },
+  "registry_record": {
+    "run_id": "ext_run_prov_1792953341718",
+    "display_name": "model_nifty_gbm_1792953341718 on exp_prov_1792953341718",
+    "run_type": "external_risk",
+    "status": "completed",
+    "created_at": "2026-10-25T18:35:41.719345+00:00",
+    "completed_at": null,
+    "lab": "risk",
+    "is_external": true,
+    "source_environment": "local_script",
+    "model_id": "model_nifty_gbm_1792953341718",
+    "dataset_id": "unspecified",
+    "metrics": {
+      "var_95": -0.0215
+    },
+    "recomputed_metrics": {},
+    "parameters": {},
+    "predictions_count": 0,
+    "artifacts_count": 0,
+    "error_message": null,
+    "provenance_hash": "697890791806cf12551ae5e208f26f7a6423a7703041d1a6f90a850c20de2410"
+  },
+  "recomputed_metrics": {}
+}

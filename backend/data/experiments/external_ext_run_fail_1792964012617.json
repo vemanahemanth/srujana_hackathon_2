@@ -1,0 +1,52 @@
+{
+  "submission": {
+    "schema_version": "1.0.0",
+    "workspace_id": "ws_test_sprint9_1792964012616",
+    "experiment_id": "exp_failure_handling",
+    "run_id": "ext_run_fail_1792964012617",
+    "model_id": "model_nifty_gbm_1792964012616",
+    "model_version": "1.0.0",
+    "dataset_id": null,
+    "dataset_version": null,
+    "target_lab": "risk",
+    "run_status": "failed",
+    "started_at": "2026-10-25T21:33:32.617317+00:00",
+    "completed_at": null,
+    "parameters": {},
+    "metrics": [],
+    "predictions": [],
+    "artifacts": [],
+    "environment": {
+      "environment_type": "local_script",
+      "hostname": null,
+      "python_version": null,
+      "platform": null,
+      "git_commit": null,
+      "frameworks": {},
+      "extra": {}
+    },
+    "error_message": "ConvergenceError: L-BFGS-B failed to converge after 1000 iterations (gradient norm > 1e-4).",
+    "provenance_hash": "55301ae4a686009fa09867d6b855335da3e2e0e8cfc1ec6e5e1ee6cb6fef6614"
+  },
+  "registry_record": {
+    "run_id": "ext_run_fail_1792964012617",
+    "display_name": "model_nifty_gbm_1792964012616 on exp_failure_handling",
+    "run_type": "external_risk",
+    "status": "failed",
+    "created_at": "2026-10-25T21:33:32.617317+00:00",
+    "completed_at": null,
+    "lab": "risk",
+    "is_external": true,
+    "source_environment": "local_script",
+    "model_id": "model_nifty_gbm_1792964012616",
+    "dataset_id": "unspecified",
+    "metrics": {},
+    "recomputed_metrics": {},
+    "parameters": {},
+    "predictions_count": 0,
+    "artifacts_count": 0,
+    "error_message": "ConvergenceError: L-BFGS-B failed to converge after 1000 iterations (gradient norm > 1e-4).",
+    "provenance_hash": "55301ae4a686009fa09867d6b855335da3e2e0e8cfc1ec6e5e1ee6cb6fef6614"
+  },
+  "recomputed_metrics": {}
+}

@@ -76,6 +76,8 @@ def canonical_json_dumps(obj: Any) -> str:
         Deterministic compact JSON string.
     """
     def _default_encoder(o: Any) -> Any:
+        if isinstance(o, (np.bool_, bool)):
+            return bool(o)
         if isinstance(o, (np.integer, int)):
             return int(o)
         if isinstance(o, (np.floating, float)):

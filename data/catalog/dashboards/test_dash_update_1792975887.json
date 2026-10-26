@@ -1,0 +1,35 @@
+{
+  "dashboard_id": "test_dash_update_1792975887",
+  "name": "Interactive Quant Board (Modified)",
+  "description": "",
+  "is_default": false,
+  "tenant_id": "default_tenant",
+  "widgets": [
+    {
+      "widget_id": "w2",
+      "type": "drawdown_stress",
+      "title": "Widget 2",
+      "width": 2,
+      "height_rows": 1,
+      "metric": null,
+      "model_id": null,
+      "portfolio_id": null,
+      "parameters": {},
+      "order": 0
+    },
+    {
+      "widget_id": "w1",
+      "type": "portfolio_risk",
+      "title": "Widget 1 (Resized)",
+      "width": 3,
+      "height_rows": 1,
+      "metric": null,
+      "model_id": null,
+      "portfolio_id": null,
+      "parameters": {},
+      "order": 1
+    }
+  ],
+  "created_at": "2026-10-26T00:51:27.075424+00:00",
+  "updated_at": "2026-10-26T00:51:27.076707+00:00"
+}

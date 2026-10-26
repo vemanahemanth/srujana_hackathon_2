@@ -1,0 +1,15 @@
+{
+  "project_id": "test_proj_api_01",
+  "name": "API Automated Test Project",
+  "description": "Integration testing API endpoints",
+  "objective": "Verify Lab 1-13 capabilities",
+  "asset_universe": [
+    "NIFTY_50"
+  ],
+  "model_type": "portfolio",
+  "created_at": "",
+  "dataset_ids": [],
+  "model_ids": [],
+  "experiment_ids": [],
+  "metadata": {}
+}

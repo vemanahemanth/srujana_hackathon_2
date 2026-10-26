@@ -1,0 +1,378 @@
+{
+  "submission": {
+    "schema_version": "1.0.0",
+    "workspace_id": "ws_colab_alpha_research",
+    "experiment_id": "exp_colab_alpha_01",
+    "run_id": "colab_run_1792956372",
+    "model_id": "colab_volatility_forecaster",
+    "model_version": "1.0.0",
+    "dataset_id": "ds_nse_nifty50_hourly",
+    "dataset_version": null,
+    "target_lab": "forecasting",
+    "run_status": "completed",
+    "started_at": "2026-10-25T19:26:12.789000+00:00",
+    "completed_at": null,
+    "parameters": {
+      "architecture": "GARCH(1,1)",
+      "distribution": "Student-t",
+      "degrees_of_freedom": 5
+    },
+    "metrics": [
+      {
+        "metric_name": "rmse",
+        "observed_value": 0.003013,
+        "baseline_value": null,
+        "unit": "pct",
+        "sample_count": 25,
+        "is_externally_reported": true,
+        "metadata": {}
+      },
+      {
+        "metric_name": "mae",
+        "observed_value": 0.002322,
+        "baseline_value": null,
+        "unit": "pct",
+        "sample_count": 25,
+        "is_externally_reported": true,
+        "metadata": {}
+      },
+      {
+        "metric_name": "directional_accuracy",
+        "observed_value": 1.0,
+        "baseline_value": null,
+        "unit": "ratio",
+        "sample_count": 25,
+        "is_externally_reported": true,
+        "metadata": {}
+      }
+    ],
+    "predictions": [
+      {
+        "timestamp": "2026-10-01T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": -0.007576,
+        "actual_value": -0.007938,
+        "horizon": "1H",
+        "confidence_lower": -0.013456,
+        "confidence_upper": -0.001696,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-02T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": -0.00494,
+        "actual_value": -0.005383,
+        "horizon": "1H",
+        "confidence_lower": -0.01082,
+        "confidence_upper": 0.00094,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-03T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": -0.011623,
+        "actual_value": -0.003362,
+        "horizon": "1H",
+        "confidence_lower": -0.017503,
+        "confidence_upper": -0.005743,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-04T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": -0.021632,
+        "actual_value": -0.020561,
+        "horizon": "1H",
+        "confidence_lower": -0.027512,
+        "confidence_upper": -0.015752,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-05T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": 0.003003,
+        "actual_value": 0.00298,
+        "horizon": "1H",
+        "confidence_lower": -0.002877,
+        "confidence_upper": 0.008883,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-06T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": -0.0192,
+        "actual_value": -0.023635,
+        "horizon": "1H",
+        "confidence_lower": -0.02508,
+        "confidence_upper": -0.01332,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-07T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": -0.00906,
+        "actual_value": -0.006187,
+        "horizon": "1H",
+        "confidence_lower": -0.01494,
+        "confidence_upper": -0.00318,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-08T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": 0.008534,
+        "actual_value": 0.004547,
+        "horizon": "1H",
+        "confidence_lower": 0.002654,
+        "confidence_upper": 0.014414,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-09T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": 0.016128,
+        "actual_value": 0.019086,
+        "horizon": "1H",
+        "confidence_lower": 0.010248,
+        "confidence_upper": 0.022008,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-10T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": -0.014534,
+        "actual_value": -0.015949,
+        "horizon": "1H",
+        "confidence_lower": -0.020414,
+        "confidence_upper": -0.008654,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-11T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": 0.017577,
+        "actual_value": 0.017603,
+        "horizon": "1H",
+        "confidence_lower": 0.011697,
+        "confidence_upper": 0.023457,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-12T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": -0.001753,
+        "actual_value": -0.002854,
+        "horizon": "1H",
+        "confidence_lower": -0.007633,
+        "confidence_upper": 0.004127,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-13T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": -0.00286,
+        "actual_value": -0.006216,
+        "horizon": "1H",
+        "confidence_lower": -0.00874,
+        "confidence_upper": 0.00302,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-14T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": 0.014711,
+        "actual_value": 0.014737,
+        "horizon": "1H",
+        "confidence_lower": 0.008831,
+        "confidence_upper": 0.020591,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-15T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": 0.022281,
+        "actual_value": 0.020882,
+        "horizon": "1H",
+        "confidence_lower": 0.016401,
+        "confidence_upper": 0.028161,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-16T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": -0.016005,
+        "actual_value": -0.019795,
+        "horizon": "1H",
+        "confidence_lower": -0.021885,
+        "confidence_upper": -0.010125,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-17T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": -0.010599,
+        "actual_value": -0.007894,
+        "horizon": "1H",
+        "confidence_lower": -0.016479,
+        "confidence_upper": -0.004719,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-18T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": 0.004409,
+        "actual_value": 0.007496,
+        "horizon": "1H",
+        "confidence_lower": -0.001471,
+        "confidence_upper": 0.010289,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-19T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": 0.013948,
+        "actual_value": 0.012239,
+        "horizon": "1H",
+        "confidence_lower": 0.008068,
+        "confidence_upper": 0.019828,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-20T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": -0.012183,
+        "actual_value": -0.014108,
+        "horizon": "1H",
+        "confidence_lower": -0.018063,
+        "confidence_upper": -0.006303,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-21T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": -0.014673,
+        "actual_value": -0.015453,
+        "horizon": "1H",
+        "confidence_lower": -0.020553,
+        "confidence_upper": -0.008793,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-22T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": 0.004062,
+        "actual_value": 0.000483,
+        "horizon": "1H",
+        "confidence_lower": -0.001818,
+        "confidence_upper": 0.009942,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-23T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": -0.018415,
+        "actual_value": -0.015276,
+        "horizon": "1H",
+        "confidence_lower": -0.024295,
+        "confidence_upper": -0.012535,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-24T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": -0.003636,
+        "actual_value": -0.004055,
+        "horizon": "1H",
+        "confidence_lower": -0.009516,
+        "confidence_upper": 0.002244,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-25T15:30:00+05:30",
+        "target": "NIFTY_HOURLY_VOL",
+        "predicted_value": 0.010491,
+        "actual_value": 0.015683,
+        "horizon": "1H",
+        "confidence_lower": 0.004611,
+        "confidence_upper": 0.016371,
+        "metadata": {}
+      }
+    ],
+    "artifacts": [
+      {
+        "artifact_id": "art_garch_weights_v1",
+        "name": "garch_weights.json",
+        "artifact_type": "uploaded_file",
+        "checksum_sha256": "4d99c07cbd28eccbdace341c785eee9a5934192a41606cb2fcb8f25ad8aa8138",
+        "size_bytes": 71,
+        "uri_or_path": "/Users/vemanahemanthbabu/srujana_hackathon_2/backend/data/artifacts/colab_run_1792956372/garch_weights.json",
+        "created_at": "2026-10-25T19:26:13.287829+00:00"
+      }
+    ],
+    "environment": {
+      "environment_type": "google_colab",
+      "hostname": null,
+      "python_version": null,
+      "platform": null,
+      "git_commit": null,
+      "frameworks": {
+        "numpy": "2.1.3"
+      },
+      "extra": {}
+    },
+    "error_message": null,
+    "provenance_hash": "b2032ca311543c9f9fee015ff446c073d02c03040b49ec39a77a2f16399eb569"
+  },
+  "registry_record": {
+    "run_id": "colab_run_1792956372",
+    "display_name": "colab_volatility_forecaster on exp_colab_alpha_01",
+    "run_type": "external_forecasting",
+    "status": "completed",
+    "created_at": "2026-10-25T19:26:12.789000+00:00",
+    "completed_at": null,
+    "lab": "forecasting",
+    "is_external": true,
+    "source_environment": "google_colab",
+    "model_id": "colab_volatility_forecaster",
+    "dataset_id": "ds_nse_nifty50_hourly",
+    "metrics": {
+      "rmse": 0.003013,
+      "mae": 0.002322,
+      "directional_accuracy": 1.0
+    },
+    "recomputed_metrics": {
+      "independent_rmse": 0.003013,
+      "independent_mae": 0.002322,
+      "independent_directional_accuracy": 1.0,
+      "evaluated_sample_count": 25,
+      "verification_status": "INDEPENDENTLY_VERIFIED"
+    },
+    "parameters": {
+      "architecture": "GARCH(1,1)",
+      "distribution": "Student-t",
+      "degrees_of_freedom": 5
+    },
+    "predictions_count": 25,
+    "artifacts_count": 1,
+    "error_message": null,
+    "provenance_hash": "b2032ca311543c9f9fee015ff446c073d02c03040b49ec39a77a2f16399eb569",
+    "artifacts": [
+      {
+        "artifact_id": "art_garch_weights_v1",
+        "name": "garch_weights.json",
+        "artifact_type": "uploaded_file",
+        "checksum_sha256": "4d99c07cbd28eccbdace341c785eee9a5934192a41606cb2fcb8f25ad8aa8138",
+        "size_bytes": 71,
+        "uri_or_path": "/Users/vemanahemanthbabu/srujana_hackathon_2/backend/data/artifacts/colab_run_1792956372/garch_weights.json",
+        "created_at": "2026-10-25T19:26:13.287829+00:00"
+      }
+    ]
+  },
+  "recomputed_metrics": {
+    "independent_rmse": 0.003013,
+    "independent_mae": 0.002322,
+    "independent_directional_accuracy": 1.0,
+    "evaluated_sample_count": 25,
+    "verification_status": "INDEPENDENTLY_VERIFIED"
+  }
+}

@@ -15,20 +15,28 @@ FragilityShield is **not** an investment advice platform, automated trading bot,
 
 ## Architecture Overview
 
-- **`backend/fragility_engine/`**: Pure, framework-agnostic Python quantitative calculation engine (`models.py`, `returns.py`, `risk.py`, `scenarios.py`, `fragility.py`, `plugins.py`, `benchmarks.py`, `backtest.py`, `studio.py`, `reproducibility.py`).
-- **`backend/app.py`**: Starlette asynchronous REST API serving domain endpoints and static application assets.
-- **`frontend/`**: Interactive, responsive financial research workspace (`index.html`, `style.css`, `app.js`) with pure SVG charts (Donut, Equity Curve, Sensitivity Tornado, Breach Timeline).
-- **`backend/tests/`**: Comprehensive automated test suite with 376 tests and >92% statement coverage.
+- **`backend/fragility_engine/`**: Pure, framework-agnostic Python quantitative calculation engine (`models.py`, `returns.py`, `risk.py`, `attribution.py`, `scenarios.py`, `fragility.py`, `allocation.py`, `validation.py`, `ml.py`, `market_data.py`, `plugins.py`, `benchmarks.py`, `backtest.py`, `data_diagnostics.py`, `simulation.py`, `assumptions.py`, `studio.py`, `reproducibility.py`, `sdk.py`, `cli.py`).
+- **`backend/app.py`**: Starlette / FastAPI asynchronous REST API serving domain endpoints, background job worker, artifact storage, and static application assets from `frontend/dist`.
+- **`frontend/`**: Canonical quantitative research terminal built with React 19, TypeScript, Vite, Tailwind CSS, Lucide icons, and Recharts. Connects to real FastAPI endpoints for portfolio risk, scenario stress testing, fragility audits, async job execution, and artifact downloads.
+- **`backend/tests/`**: Comprehensive automated test suite with 701 tests spanning quantitative correctness, multi-tenancy RLS, worker isolation, and frontend integration.
+- **`legacy_frontend_backup/`**: Preserved backup of original vanilla HTML/JS assets before replacement.
 - **`data/sample_portfolios/`**: Illustrative test fixtures, including the ₹10 Lakh NSE sample portfolio (`nse_10l.json`, `nse_10l.csv`).
 - **`data/experiments/`**: Local catalog storage for reproducible studio experiment reports.
-- **`docs/`**: Architecture plans, audit reviews, and completion reports (`phase-0` through `phase-9`).
+- **`docs/`**: Authoritative requirements and architecture documentation:
+  - [`docs/production/SPRINT_6_FRONTEND_REPLACEMENT_BASELINE.md`](docs/production/SPRINT_6_FRONTEND_REPLACEMENT_BASELINE.md): Frontend replacement baseline, discovery, and migration plan.
+  - [`docs/production/SPRINT_6_API_INTEGRATION_MAP.md`](docs/production/SPRINT_6_API_INTEGRATION_MAP.md): API contract, endpoint schemas, and frontend integration mapping.
+  - [`docs/production/SPRINT_6_IMPLEMENTATION_REPORT.md`](docs/production/SPRINT_6_IMPLEMENTATION_REPORT.md): Verified outcome of frontend replacement and safe backend integration.
+  - [`docs/blueprint-requirements-matrix.md`](docs/blueprint-requirements-matrix.md): 100% verified traceability matrix for all requirements.
+  - [`docs/backend-architecture.md`](docs/backend-architecture.md): Canonical reference architecture and layer contracts.
+  - [`docs/backend-implementation-status.md`](docs/backend-implementation-status.md): Complete section-by-section audit and implementation status.
 
 ---
 
 ## Local Setup & Application Launch
 
 ### 1. Requirements
-- Python 3.10+ (tested on Python 3.14.6)
+- Python 3.10+ (tested on Python 3.12 / 3.14)
+- Node.js 18+ and npm
 - Git
 
 ### 2. Environment Setup
@@ -42,42 +50,138 @@ source .venv/bin/activate
 
 # Install the engine and API dependencies in editable mode
 pip install -e backend
+
+# Install frontend dependencies
+cd frontend && npm install && cd ..
 ```
 
-### 3. Launch the Interactive Application
-```bash
-# Start the FragilityShield research laboratory
-.venv/bin/python -m backend.app
+### 3. Launch the Application
 
-# Or directly with Uvicorn
-.venv/bin/uvicorn backend.app:app --host 127.0.0.1 --port 8000
+There are two primary ways to run FragilityShield:
+
+#### Mode A: Production Single-Process Mode (FastAPI serves compiled frontend)
+```bash
+# 1. Build the production React frontend bundle
+cd frontend && npm run build && cd ..
+
+# 2. Launch the backend API (automatically mounts frontend/dist at /)
+python -m backend.app
+# Or via uvicorn:
+uvicorn backend.app:app --host 127.0.0.1 --port 8000
 ```
 Open your browser to: **`http://127.0.0.1:8000`**
 
+#### Mode B: Active Development Mode (Vite Dev Server with Proxy)
+```bash
+# Terminal 1: Start backend API
+uvicorn backend.app:app --host 127.0.0.1 --port 8000 --reload
+
+# Terminal 2: Start Vite React Dev Server
+cd frontend
+npm run dev
+```
+Open your browser to: **`http://localhost:5173`** (Vite proxies all `/api/*` calls directly to `http://127.0.0.1:8000`).
+
 ### 4. Run Automated Tests
 ```bash
-# Execute application API tests
-.venv/bin/python -m pytest backend/tests/test_application_api.py -v
+# Frontend typecheck & production build verification
+cd frontend && npm run typecheck && npm run build && cd ..
 
-# Execute full regression test suite with branch coverage (376 passed, 92% coverage)
-.venv/bin/python -m pytest backend/tests/ -v --cov=fragility_engine --cov-report=term-missing --cov-branch
+# Backend regression and integration test suite (701 passed)
+pytest backend/tests/ -q
 ```
 
 ---
 
-## Interactive Application & Research Workspace (Phase 9)
+## Python SDK & Command Line Interface
 
-FragilityShield Phase 9 provides an assumption-aware research laboratory accessible via a modern web interface.
+### Python SDK Quickstart
+All laboratory services can be programmatically controlled using the typed `Client`:
 
-### The 8 Core Research Laboratories
+```python
+from fragility_engine import Client, Holding
+
+client = Client()
+
+# Ingest a portfolio
+portfolio = client.portfolios.create(
+    portfolio_id="nse_core",
+    name="Institutional Alpha Portfolio",
+    currency="INR",
+    holdings=[
+        Holding("INFY", 100.0, 1500.0, "Information Technology"),
+        Holding("HDFCBANK", 200.0, 1600.0, "Banking"),
+        Holding("RELIANCE", 100.0, 2500.0, "Energy"),
+    ],
+)
+
+# Compute coherent tail risk metrics (Loss convention L = -R, Acerbi-Tasche ES >= VaR)
+returns = client.market_data.offline_sample_provider().get_returns("INFY")
+risk = client.risk.calculate(returns)
+print(f"Annualized Volatility: {risk.volatility_annualized:.2%}")
+print(f"95% Value-at-Risk:    {risk.var_95:.2%}")
+print(f"95% Expected Shortfall: {risk.expected_shortfall_95:.2%}")
+
+# Execute stress scenario with exact P&L reconciliation
+result = client.scenarios.execute(
+    portfolio=portfolio,
+    sector_shocks={"Information Technology": 0.05, "Banking": -0.15},
+)
+print(f"Stressed Portfolio P&L: ₹{result.total_pnl:,.2f}")
+
+# Execute 5-attack fragility audit with sensitivity rankings
+audit = client.fragility.run_audit(returns)
+print(f"Top Sensitive Assumption: {audit.sensitivity_ranking.most_sensitive_perturbation}")
+
+# Optimize portfolio via minimum-variance quadratic programming
+cov_matrix = client.risk.covariance_matrix(
+    [client.market_data.offline_sample_provider().get_returns(a) for a in ["INFY", "HDFCBANK", "RELIANCE"]]
+)
+alloc = client.allocation.optimize_minimum_variance(cov_matrix, ["INFY", "HDFCBANK", "RELIANCE"])
+print(f"Optimal Weights: {alloc.weights}")
+```
+
+### CLI Quickstart
+Execute research tasks directly from the terminal:
+
+```bash
+# Calculate portfolio risk
+.venv/bin/python -m fragility_engine.cli risk --returns 0.01,-0.015,0.02,-0.025,0.005
+
+# Run fragility assumption audit
+.venv/bin/python -m fragility_engine.cli fragility --returns 0.01,-0.015,0.02,-0.025,0.005
+
+# Run analytical reference-value validation suite
+.venv/bin/python -m fragility_engine.cli validation
+
+# List registered risk model plugins
+.venv/bin/python -m fragility_engine.cli plugins
+
+# Calculate statutory Indian trade charges (STT, GST, SEBI fee, Stamp Duty)
+.venv/bin/python -m fragility_engine.cli charges --price 2500.0 --quantity 100 --order-type delivery
+```
+
+---
+
+## Interactive Application & Research Workspace
+
+FragilityShield provides an assumption-aware research laboratory accessible via a modern web interface.
+
+### The 12 Comprehensive Research Laboratories
 1. **Overview**: Live summary of portfolio valuation, position counts, concentration indicators, baseline volatility/VaR KPIs, scenario loss metrics, and model ranking highlights.
 2. **Portfolio Lab**: Multi-asset portfolio creation and validation. Supports loading bundled ₹10L NSE JSON and CSV fixtures (`data/sample_portfolios/`) or pasting custom JSON/CSV. Calculates Herfindahl-Hirschman Index (decimal and points) across assets and sectors with SVG donut charts.
-3. **Risk Analysis**: Calculates Annualized Volatility, Value-at-Risk (95% & 99%), Expected Shortfall (CVaR), and Maximum Drawdown with dual-axis Equity Curve / Drawdown charts and interactive methodology explanation panels.
-4. **Scenario Lab**: Instantaneous factor and sector stress scenarios (e.g. Banking -20%, IT -10%). Performs full P&L reconciliation with sector attribution breakdown and explicit disclaimers regarding static sensitivity versus forecasting.
-5. **Fragility Lab (Central Differentiator)**: Investigates how risk estimates change when assumptions change. Executes perturbation attacks on historical lookback windows (20d vs 60d), volatility estimators (Sample StdDev vs RiskMetrics EWMA $\lambda=0.94$), transaction friction (10 bps drag), tail confidence shifts (95% vs 99%), and portfolio liquidation costs. Renders sensitivity tornado rankings to identify dominant model sensitivities.
-6. **Model Benchmarking**: Multi-model comparative laboratory evaluating registered plugins (`parametric_gaussian`, `historical_simulation`, `ewma`). Enforces Phase 8.1 ranking semantics ("A lower estimated VaR is not automatically a better risk model").
-7. **VaR Backtesting**: Rolling walk-forward evaluation aligning 1-step-ahead forecasts with realized returns without look-ahead contamination. Features breach timeline visualization, Kupiec POF test, and Christoffersen independence and conditional coverage tests.
-8. **Experiments & Reports**: Catalog of executed experiments, SHA-256 cryptographic reproducibility manifests, and formatted export to Markdown, JSON, and CSV.
+3. **Data Diagnostics Lab**: Evaluates empirical return distribution properties before model selection. Calculates sample skewness, excess kurtosis, Jarque-Bera normality test with exact $\chi^2$ p-values, lag-1 autocorrelation ($\rho_1$), zero-return frequency, SVG return distribution histogram, and automated model suitability verdicts.
+4. **Risk & Attribution**: Calculates Annualized Volatility, Value-at-Risk (95% & 99%), Expected Shortfall (CVaR), and Maximum Drawdown with dual-axis Equity Curve / Drawdown charts. Features an **Euler Marginal Risk Allocation & Component VaR table** ($CVaR_i = w_i \cdot \beta_i \cdot VaR_p$) proving exact mathematical reconciliation ($\sum CVaR_i = VaR_p$) under Euler's homogeneous degree 1 theorem.
+5. **Simulation & Uncertainty**: Dual-engine uncertainty exploration:
+   - **Forward Monte Carlo Simulation**: Multi-path simulations (Gaussian or Student-t fat-tailed innovations) generating 5th, 50th, and 95th percentile envelope paths and terminal loss distributions.
+   - **Non-Parametric Bootstrap Uncertainty**: Resamples return histories to generate 90% and 95% confidence intervals for VaR and ES, revealing sample-size sensitivity.
+6. **Scenario Lab**: Instantaneous factor and sector stress scenarios (e.g. Banking -20%, IT -10%). Performs full P&L reconciliation with sector attribution breakdown and explicit disclaimers regarding static sensitivity versus forecasting.
+7. **Fragility Lab (Central Differentiator)**: Investigates how risk estimates change when assumptions change. Executes perturbation attacks on historical lookback windows (20d vs 60d), volatility estimators (Sample StdDev vs RiskMetrics EWMA $\lambda=0.94$), transaction friction (10 bps drag), tail confidence shifts (95% vs 99%), and portfolio liquidation costs. Renders sensitivity tornado rankings to identify dominant model sensitivities.
+8. **Assumption Registry**: Centralized catalog documenting the mathematical formulations, distributional assumptions, temporal dynamics, preconditions, known failure regimes, and fragility vulnerabilities for parametric, non-parametric, conditional volatility, and heavy-tailed models.
+9. **Custom Model Builder**: Allows researchers to interactively configure and register custom quantitative risk models (e.g. Student-t with specific degrees of freedom, EWMA with custom decay, Cornish-Fisher expansion, historical quantiles). Registered models dynamically integrate into the shared engine registry for benchmarking and backtesting.
+10. **Model Benchmarking**: Multi-model comparative laboratory evaluating registered plugins (`parametric_gaussian`, `historical_simulation`, `ewma`, plus any registered custom models). Enforces Phase 8.1 ranking semantics ("A lower estimated VaR is not automatically a better risk model").
+11. **VaR Backtesting**: Rolling walk-forward evaluation aligning 1-step-ahead forecasts with realized returns without look-ahead contamination. Features breach timeline visualization, Kupiec POF test, and Christoffersen independence and conditional coverage tests.
+12. **Experiments & Reports**: Catalog of executed experiments, SHA-256 cryptographic reproducibility manifests, and formatted export to Markdown, JSON, and CSV.
 
 ### REST API Endpoints
 
@@ -87,7 +191,13 @@ FragilityShield Phase 9 provides an assumption-aware research laboratory accessi
 | `GET` | `/api/portfolios/sample?id=...` | Load bundled sample portfolio fixtures |
 | `POST` | `/api/portfolios/validate` | Validate user-uploaded portfolio JSON/CSV |
 | `POST` | `/api/portfolios/concentration` | Calculate asset and sector HHI concentration |
+| `POST` | `/api/data/diagnostics` | Compute skewness, kurtosis, Jarque-Bera normality, and suitability |
 | `POST` | `/api/risk/calculate` | Compute volatility, VaR, ES, and equity curve |
+| `POST` | `/api/risk/attribution` | Calculate Euler Marginal Risk Allocation and Component VaR |
+| `POST` | `/api/simulation/monte-carlo` | Multi-path forward Monte Carlo envelope simulation |
+| `POST` | `/api/simulation/bootstrap` | Non-parametric bootstrap confidence intervals for VaR/ES |
+| `GET` | `/api/assumptions/catalog` | Catalog of model assumptions, failure regimes, and vulnerabilities |
+| `POST` | `/api/models/register` | Register user-configured custom quantitative model plugin |
 | `POST` | `/api/scenarios/execute` | Run stress scenario with P&L reconciliation |
 | `POST` | `/api/fragility/run` | Execute assumption perturbation attacks and sensitivity ranking |
 | `GET` | `/api/benchmarks/models` | List registered quantitative model plugins |

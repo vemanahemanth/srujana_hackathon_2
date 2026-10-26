@@ -1,0 +1,73 @@
+{
+  "submission": {
+    "schema_version": "1.0.0",
+    "workspace_id": "ws_test_sprint9_1792961227565",
+    "experiment_id": "exp_art_test",
+    "run_id": "ext_run_art_1792961227565",
+    "model_id": "model_nifty_gbm_1792961227565",
+    "model_version": "1.0.0",
+    "dataset_id": null,
+    "dataset_version": null,
+    "target_lab": "general",
+    "run_status": "completed",
+    "started_at": "2026-10-25T20:47:07.565465+00:00",
+    "completed_at": null,
+    "parameters": {},
+    "metrics": [],
+    "predictions": [],
+    "artifacts": [
+      {
+        "artifact_id": "art_weights",
+        "name": "weights.json",
+        "artifact_type": "uploaded_file",
+        "checksum_sha256": "cfb0b22969496adbb4bc62910b346d0bfdae94bc038d7db124f0fff47a232415",
+        "size_bytes": 54,
+        "uri_or_path": "/Users/vemanahemanthbabu/srujana_hackathon_2/backend/data/artifacts/ext_run_art_1792961227565/weights.json",
+        "created_at": "2026-10-25T20:47:07.566575+00:00"
+      }
+    ],
+    "environment": {
+      "environment_type": "local_script",
+      "hostname": null,
+      "python_version": null,
+      "platform": null,
+      "git_commit": null,
+      "frameworks": {},
+      "extra": {}
+    },
+    "error_message": null,
+    "provenance_hash": "e466f680523161daae21599dcbf472eab6762474100e526f3be513699e3694a7"
+  },
+  "registry_record": {
+    "run_id": "ext_run_art_1792961227565",
+    "display_name": "model_nifty_gbm_1792961227565 on exp_art_test",
+    "run_type": "external_general",
+    "status": "completed",
+    "created_at": "2026-10-25T20:47:07.565465+00:00",
+    "completed_at": null,
+    "lab": "general",
+    "is_external": true,
+    "source_environment": "local_script",
+    "model_id": "model_nifty_gbm_1792961227565",
+    "dataset_id": "unspecified",
+    "metrics": {},
+    "recomputed_metrics": {},
+    "parameters": {},
+    "predictions_count": 0,
+    "artifacts_count": 1,
+    "error_message": null,
+    "provenance_hash": "e466f680523161daae21599dcbf472eab6762474100e526f3be513699e3694a7",
+    "artifacts": [
+      {
+        "artifact_id": "art_weights",
+        "name": "weights.json",
+        "artifact_type": "uploaded_file",
+        "checksum_sha256": "cfb0b22969496adbb4bc62910b346d0bfdae94bc038d7db124f0fff47a232415",
+        "size_bytes": 54,
+        "uri_or_path": "/Users/vemanahemanthbabu/srujana_hackathon_2/backend/data/artifacts/ext_run_art_1792961227565/weights.json",
+        "created_at": "2026-10-25T20:47:07.566575+00:00"
+      }
+    ]
+  },
+  "recomputed_metrics": {}
+}

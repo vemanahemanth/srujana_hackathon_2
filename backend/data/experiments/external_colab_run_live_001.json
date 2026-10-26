@@ -1,0 +1,64 @@
+{
+  "submission": {
+    "schema_version": "1.0.0",
+    "workspace_id": "ws_colab",
+    "experiment_id": "exp_colab_alpha_01",
+    "run_id": "colab_run_live_001",
+    "model_id": "colab_volatility_forecaster",
+    "model_version": "1.0.0",
+    "dataset_id": null,
+    "dataset_version": null,
+    "target_lab": "general",
+    "run_status": "completed",
+    "started_at": "2026-10-25T19:13:34.099364+00:00",
+    "completed_at": null,
+    "parameters": {},
+    "metrics": [
+      {
+        "metric_name": "rmse",
+        "observed_value": 0.045,
+        "baseline_value": null,
+        "unit": "",
+        "sample_count": null,
+        "is_externally_reported": true,
+        "metadata": {}
+      }
+    ],
+    "predictions": [],
+    "artifacts": [],
+    "environment": {
+      "environment_type": "local_script",
+      "hostname": null,
+      "python_version": null,
+      "platform": null,
+      "git_commit": null,
+      "frameworks": {},
+      "extra": {}
+    },
+    "error_message": null,
+    "provenance_hash": "39383102cf00b475db542d272e5fabdfddcbbd2c66c9bb5f1faf79daea714bd3"
+  },
+  "registry_record": {
+    "run_id": "colab_run_live_001",
+    "display_name": "colab_volatility_forecaster on exp_colab_alpha_01",
+    "run_type": "external_general",
+    "status": "completed",
+    "created_at": "2026-10-25T19:13:34.099364+00:00",
+    "completed_at": null,
+    "lab": "general",
+    "is_external": true,
+    "source_environment": "local_script",
+    "model_id": "colab_volatility_forecaster",
+    "dataset_id": "unspecified",
+    "metrics": {
+      "rmse": 0.045
+    },
+    "recomputed_metrics": {},
+    "parameters": {},
+    "predictions_count": 0,
+    "artifacts_count": 0,
+    "error_message": null,
+    "provenance_hash": "39383102cf00b475db542d272e5fabdfddcbbd2c66c9bb5f1faf79daea714bd3"
+  },
+  "recomputed_metrics": {}
+}

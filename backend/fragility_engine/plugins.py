@@ -25,10 +25,16 @@ import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+import scipy.stats as stats
 import numpy as np
 
 from fragility_engine.models import Holding, Portfolio
-from fragility_engine.risk import calculate_risk_report
+from fragility_engine.risk import (
+    calculate_expected_shortfall,
+    calculate_historical_var,
+    calculate_maximum_drawdown,
+    calculate_risk_report,
+)
 from fragility_engine.fragility import calculate_ewma_volatility
 from fragility_engine.concentration import calculate_portfolio_concentration
 
@@ -577,6 +583,243 @@ class PortfolioConcentrationPlugin(ModelPlugin):
         )
 
 
+
+class ConfigurableCustomModelPlugin(ModelPlugin):
+    """Extensible, user-configurable quantitative model plugin.
+
+    Enables researchers to assemble, parameterize, and register custom models:
+    - 'student_t': Heavy-tailed parametric model with degrees of freedom nu in [2.5, 100].
+    - 'ewma': RiskMetrics exponential moving average with custom decay factor lambda in [0.80, 0.999].
+    - 'cornish_fisher': Semiparametric quantile expansion using empirical skewness and excess kurtosis.
+    - 'historical_quantile': Configurable quantile interpolation (linear, lower, higher, nearest, midpoint).
+    """
+
+    def __init__(
+        self,
+        model_id: str,
+        name: str,
+        family: str = "student_t",
+        parameters: Optional[Mapping[str, Any]] = None,
+        description: str = "",
+        limitations: Optional[Sequence[str]] = None,
+    ) -> None:
+        clean_id = str(model_id).strip()
+        if not clean_id:
+            raise ValueError("model_id cannot be blank")
+        if not re.match(r"^[a-zA-Z0-9_\-\.]+$", clean_id):
+            raise ValueError(f"model_id '{clean_id}' contains invalid characters")
+
+        family_clean = str(family).strip().lower()
+        valid_families = {"student_t", "ewma", "cornish_fisher", "historical_quantile"}
+        if family_clean not in valid_families:
+            raise ValueError(f"family must be one of {sorted(valid_families)}; got '{family}'")
+
+        params = dict(parameters or {})
+        self._family = family_clean
+        self._params = params
+
+        # Validate parameters by family
+        if family_clean == "student_t":
+            df = float(params.get("degrees_of_freedom", params.get("df", 5.0)))
+            if df < 2.5 or df > 100.0:
+                raise ValueError(f"Student-t degrees of freedom must be in [2.5, 100]; got {df}")
+            self._params["degrees_of_freedom"] = df
+            default_desc = f"Parametric Student-t model with {df:.1f} degrees of freedom for fat-tailed returns."
+            default_limits = (
+                f"Assumes constant tail thickness with nu={df:.1f}.",
+                "Overestimates routine risk if empirical returns do not have heavy tails.",
+            )
+        elif family_clean == "ewma":
+            decay = float(params.get("decay_factor", params.get("lambda", 0.94)))
+            if decay < 0.80 or decay > 0.999:
+                raise ValueError(f"EWMA decay_factor must be in [0.80, 0.999]; got {decay}")
+            self._params["decay_factor"] = decay
+            default_desc = f"Custom RiskMetrics EWMA volatility model with decay factor lambda={decay:.3f}."
+            default_limits = (
+                f"Assumes exponential variance memory with decay={decay:.3f}.",
+                "Vulnerable to persistent volatility overestimation after large single-day shocks.",
+            )
+        elif family_clean == "cornish_fisher":
+            default_desc = "Cornish-Fisher semiparametric expansion adjusting quantiles for skewness and excess kurtosis."
+            default_limits = (
+                "High estimation variance for sample kurtosis in small samples (N < 50).",
+                "Polynomial expansion can lose monotonicity under extreme skewness (|S| > 1.5).",
+            )
+        else:  # historical_quantile
+            method = str(params.get("method", "linear")).strip().lower()
+            valid_methods = {"linear", "lower", "higher", "midpoint", "nearest"}
+            if method not in valid_methods:
+                raise ValueError(f"historical_quantile method must be one of {sorted(valid_methods)}; got '{method}'")
+            self._params["method"] = method
+            default_desc = f"Historical simulation with '{method}' quantile interpolation."
+            default_limits = (
+                "Cannot forecast tail events beyond the empirical sample history.",
+                "Assumes historical distribution replicates future realization.",
+            )
+
+        self._meta = PluginMetadata(
+            plugin_id=clean_id,
+            name=str(name).strip() or f"Custom {family_clean.title()} Model",
+            description=description.strip() or default_desc,
+            plugin_version="1.0.0",
+            api_version="1.0.0",
+            supported_data_types=("return_series",),
+            capabilities=(
+                "volatility_daily",
+                "volatility_annualized",
+                "annualized_volatility",
+                "var_95",
+                "var_historical",
+                "var_99",
+                "expected_shortfall",
+                "expected_shortfall_95",
+                "expected_shortfall_99",
+                "max_drawdown",
+                "maximum_drawdown",
+            ),
+            required_config_keys=(),
+            optional_config_keys=("confidence_level", "annualization_factor"),
+            limitations=tuple(limitations) if limitations else default_limits,
+        )
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        return self._meta
+
+    @property
+    def family(self) -> str:
+        return self._family
+
+    @property
+    def parameters(self) -> Dict[str, Any]:
+        return dict(self._params)
+
+    def validate_input(self, data: Any, config: Optional[Mapping[str, Any]] = None) -> None:
+        if data is None:
+            raise TypeError("Dataset cannot be None")
+        if isinstance(data, Portfolio):
+            raise TypeError("Custom model requires return series, not a Portfolio snapshot")
+        arr = np.asarray(data, dtype=np.float64)
+        if arr.size == 0:
+            raise ValueError("Dataset cannot be empty")
+        if arr.size < 4:
+            raise ValueError(f"Dataset requires at least 4 observations; got {arr.size}")
+        if not np.all(np.isfinite(arr)):
+            raise ValueError("Dataset contains non-finite values (NaN or Inf)")
+
+    def execute(self, data: Any, config: Optional[Mapping[str, Any]] = None) -> ModelExecutionResult:
+        cfg = dict(config or {})
+        self.validate_input(data, cfg)
+        arr = np.asarray(data, dtype=np.float64)
+        n = len(arr)
+        ann_factor = float(cfg.get("annualization_factor", 252.0))
+        ddof = int(cfg.get("ddof", 1))
+
+        t0 = time.perf_counter()
+        mu = float(np.mean(arr))
+        vol_daily = float(np.std(arr, ddof=ddof))
+        vol_annual = vol_daily * math.sqrt(ann_factor)
+
+        # Compute VaR and ES based on family
+        if self._family == "student_t":
+            df = float(self._params["degrees_of_freedom"])
+            scale = vol_daily * math.sqrt((df - 2.0) / df)
+            t_q95 = float(stats.t.ppf(0.95, df=df))
+            t_q99 = float(stats.t.ppf(0.99, df=df))
+            var_95 = -mu + scale * t_q95
+            var_99 = -mu + scale * t_q99
+
+            pdf95 = float(stats.t.pdf(t_q95, df=df))
+            pdf99 = float(stats.t.pdf(t_q99, df=df))
+            es_factor_95 = (pdf95 / 0.05) * ((df + t_q95**2) / (df - 1.0))
+            es_factor_99 = (pdf99 / 0.01) * ((df + t_q99**2) / (df - 1.0))
+            es_95 = -mu + scale * es_factor_95
+            es_99 = -mu + scale * es_factor_99
+
+        elif self._family == "ewma":
+            decay = float(self._params["decay_factor"])
+            vol_annual = calculate_ewma_volatility(arr, decay_factor=decay, annualization_factor=ann_factor)
+            vol_daily = vol_annual / math.sqrt(ann_factor)
+            ewma_vol = vol_daily
+            z95 = float(stats.norm.ppf(0.95))
+            z99 = float(stats.norm.ppf(0.99))
+            var_95 = -mu + ewma_vol * z95
+            var_99 = -mu + ewma_vol * z99
+            es_95 = -mu + ewma_vol * (stats.norm.pdf(z95) / 0.05)
+            es_99 = -mu + ewma_vol * (stats.norm.pdf(z99) / 0.01)
+
+        elif self._family == "cornish_fisher":
+            devs = arr - mu
+            m2 = float(np.mean(devs**2))
+            m3 = float(np.mean(devs**3))
+            m4 = float(np.mean(devs**4))
+            s = (m3 / (m2**1.5)) if m2 > 1e-12 else 0.0
+            k = ((m4 / (m2**2.0)) - 3.0) if m2 > 1e-12 else 0.0
+
+            def cf_quantile(alpha: float) -> float:
+                z = float(stats.norm.ppf(alpha))
+                return z + (1.0 / 6.0) * (z**2 - 1.0) * s + (1.0 / 24.0) * (z**3 - 3.0 * z) * k - (1.0 / 36.0) * (2.0 * z**3 - 5.0 * z) * (s**2)
+
+            q95 = cf_quantile(0.95)
+            q99 = cf_quantile(0.99)
+            var_95 = -mu + vol_daily * q95
+            var_99 = -mu + vol_daily * q99
+            losses = -arr
+            tail95 = losses[losses >= var_95]
+            tail99 = losses[losses >= var_99]
+            es_95 = max(var_95, float(np.mean(tail95)) if len(tail95) > 0 else var_95)
+            es_99 = max(var_99, float(np.mean(tail99)) if len(tail99) > 0 else var_99)
+
+        else:  # historical_quantile
+            method = self._params.get("method", "linear")
+            losses = -arr
+            var_95 = float(np.percentile(losses, 95.0, method=method))
+            var_99 = float(np.percentile(losses, 99.0, method=method))
+            tail95 = losses[losses >= var_95]
+            tail99 = losses[losses >= var_99]
+            es_95 = float(np.mean(tail95)) if len(tail95) > 0 else var_95
+            es_99 = float(np.mean(tail99)) if len(tail99) > 0 else var_99
+
+        # Drawdown calculation
+        eq = np.empty(n + 1, dtype=np.float64)
+        eq[0] = 1.0
+        for i, r in enumerate(arr):
+            eq[i + 1] = eq[i] * (1.0 + r)
+        dd_res = calculate_maximum_drawdown(eq)
+        mdd = dd_res.max_drawdown
+
+        t_elapsed_ms = (time.perf_counter() - t0) * 1000.0
+
+        metrics = {
+            "volatility_daily": vol_daily,
+            "volatility_annualized": vol_annual,
+            "annualized_volatility": vol_annual,
+            "var_95": var_95,
+            "var_historical": var_95,
+            "var_99": var_99,
+            "expected_shortfall": es_95,
+            "expected_shortfall_95": es_95,
+            "expected_shortfall_99": es_99,
+            "max_drawdown": mdd,
+            "maximum_drawdown": mdd,
+        }
+        if self._family == "ewma":
+            metrics["ewma_volatility"] = vol_annual
+        elif self._family == "cornish_fisher":
+            metrics["cornish_fisher_z"] = q95
+
+        return ModelExecutionResult(
+            plugin_id=self.metadata.plugin_id,
+            model_version=self.metadata.plugin_version,
+            metrics=metrics,
+            execution_time_ms=t_elapsed_ms,
+            observations_used=n,
+            warnings=(),
+            limitations=self.metadata.limitations,
+            metadata={"family": self._family, "parameters": dict(self._params)},
+        )
+
+
 # ==============================================================================
 # C4. Plugin Registry
 # ==============================================================================
@@ -584,15 +827,21 @@ class PortfolioConcentrationPlugin(ModelPlugin):
 class PluginRegistry:
     """Thread-safe, deterministic registry for managing model plugins."""
 
-    def __init__(self) -> None:
+    def __init__(self, enforce_trusted_execution: bool = True) -> None:
         self._plugins: Dict[str, ModelPlugin] = {}
+        self._trusted_status: Dict[str, bool] = {}
+        self._enforce_trusted_execution = enforce_trusted_execution
 
-    def register(self, plugin: ModelPlugin, overwrite: bool = False) -> None:
+    def register(self, plugin: ModelPlugin, overwrite: bool = False, trusted: Optional[bool] = None) -> None:
         """Register a ModelPlugin instance with the registry.
 
         Args:
             plugin: An instance implementing the ModelPlugin protocol.
             overwrite: If False, raises ValueError if plugin_id is already registered.
+            trusted: Whether this plugin is verified as trusted for in-process execution.
+                     Defaults to True for 'builtin.*' plugins; external plugins default to True
+                     if trusted is None, but can be explicitly registered with trusted=False
+                     to enforce execution restrictions.
 
         Raises:
             TypeError: If plugin is not an instance of ModelPlugin.
@@ -608,6 +857,55 @@ class PluginRegistry:
             raise ValueError(f"Plugin '{pid}' is already registered. Specify overwrite=True to replace.")
 
         self._plugins[pid] = plugin
+        is_trusted = (trusted if trusted is not None else pid.startswith("builtin."))
+        self._trusted_status[pid] = is_trusted
+
+    def is_trusted(self, plugin_id: str) -> bool:
+        """Check whether a plugin is trusted for in-process execution."""
+        if plugin_id not in self._plugins:
+            raise KeyError(f"Plugin '{plugin_id}' not found in registry.")
+        return self._trusted_status.get(plugin_id, False)
+
+    def execute_plugin(
+        self,
+        plugin_id: str,
+        input_data: Any,
+        config: Optional[Dict[str, Any]] = None,
+        trusted_override: bool = False,
+    ) -> ModelExecutionResult:
+        """Execute a registered plugin with security policy enforcement.
+
+        Raises:
+            KeyError: If plugin_id is not registered.
+            PermissionError: If plugin is untrusted and trusted_override is False.
+        """
+        plugin = self.get(plugin_id)
+        if self._enforce_trusted_execution and not self.is_trusted(plugin_id) and not trusted_override:
+            raise PermissionError(
+                f"Execution of untrusted plugin '{plugin_id}' is blocked on unisolated host runtime. "
+                "In-process execution of arbitrary third-party code is prohibited by FragilityShield "
+                "security policy. An isolated worker container (gVisor/container) is required."
+            )
+        cfg = dict(config or {})
+        return plugin.execute(input_data, cfg)
+
+    def get_isolation_status(self, plugin_id: str) -> Dict[str, Any]:
+        """Return clear security and isolation metadata for a registered plugin."""
+        plugin = self.get(plugin_id)
+        is_builtin = plugin_id.startswith("builtin.")
+        is_trusted = self.is_trusted(plugin_id)
+        return {
+            "plugin_id": plugin_id,
+            "is_builtin": is_builtin,
+            "is_trusted": is_trusted,
+            "host_execution_model": "in_process",
+            "os_isolation_active": False,
+            "security_warning": (
+                None if is_builtin else
+                "WARNING: Local runtime executes plugins in-process without OS container isolation. "
+                "Third-party untrusted code requires an external isolated worker container."
+            ),
+        }
 
     def get(self, plugin_id: str) -> ModelPlugin:
         """Retrieve a registered plugin by plugin_id.
@@ -618,6 +916,7 @@ class PluginRegistry:
         if plugin_id not in self._plugins:
             raise KeyError(f"Plugin '{plugin_id}' not found in registry. Available: {sorted(self._plugins.keys())}")
         return self._plugins[plugin_id]
+
 
     def list_plugins(
         self,
@@ -661,11 +960,30 @@ class PluginRegistry:
         return plugin_id in self._plugins
 
 
+_GLOBAL_DEFAULT_REGISTRY: Optional[PluginRegistry] = None
+
+
 def get_default_registry() -> PluginRegistry:
-    """Factory creating a PluginRegistry pre-loaded with built-in model plugins."""
-    registry = PluginRegistry()
-    registry.register(HistoricalSimulationPlugin())
-    registry.register(ParametricGaussianPlugin())
-    registry.register(EWMAVolatilityPlugin())
-    registry.register(PortfolioConcentrationPlugin())
-    return registry
+    """Factory returning the shared global PluginRegistry instance populated with built-ins."""
+    global _GLOBAL_DEFAULT_REGISTRY
+    if _GLOBAL_DEFAULT_REGISTRY is None:
+        registry = PluginRegistry()
+        registry.register(HistoricalSimulationPlugin())
+        registry.register(ParametricGaussianPlugin())
+        registry.register(EWMAVolatilityPlugin())
+        registry.register(PortfolioConcentrationPlugin())
+        _GLOBAL_DEFAULT_REGISTRY = registry
+    return _GLOBAL_DEFAULT_REGISTRY
+
+
+def reset_default_registry() -> PluginRegistry:
+    """Reset the global registry to only built-in plugins."""
+    global _GLOBAL_DEFAULT_REGISTRY
+    _GLOBAL_DEFAULT_REGISTRY = None
+    return get_default_registry()
+
+
+# Public aliases
+PluginManifest = PluginMetadata
+get_global_registry = get_default_registry
+PluginRegistry.get_plugin = PluginRegistry.get

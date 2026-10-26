@@ -1,0 +1,23 @@
+{
+  "job_id": "job_mdl_0fcf8666d899dcec",
+  "request_id": "req_a8db07e89595ecde",
+  "tenant_id": "ten_default",
+  "user_id": "local_researcher",
+  "model_id": "builtin.ewma",
+  "category": "risk_estimation",
+  "status": "succeeded",
+  "execution_mode": "trusted_local_research",
+  "exit_code": 0,
+  "execution_time_ms": 0.20420900000317488,
+  "output_payload": {
+    "var": 0.01825,
+    "expected_shortfall": 0.02,
+    "volatility": 0.013693063937629153
+  },
+  "reproducibility_hash": "b3594798b8b0ef8713877960177ca443b2717170f85140c9a180ef839b45db60",
+  "error_category": null,
+  "error_message": null,
+  "stdout": "",
+  "stderr": "",
+  "timestamp": 1792974462.724627
+}

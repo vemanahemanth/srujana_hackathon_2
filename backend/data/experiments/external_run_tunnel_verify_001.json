@@ -1,0 +1,75 @@
+{
+  "submission": {
+    "schema_version": "1.0.0",
+    "workspace_id": "colab_test_ws",
+    "experiment_id": "exp_tunnel_verify",
+    "run_id": "run_tunnel_verify_001",
+    "model_id": "colab_test_model",
+    "model_version": "1.0.0",
+    "dataset_id": null,
+    "dataset_version": null,
+    "target_lab": "general",
+    "run_status": "completed",
+    "started_at": "2026-10-25T19:02:17.326194+00:00",
+    "completed_at": null,
+    "parameters": {},
+    "metrics": [
+      {
+        "metric_name": "test_accuracy",
+        "observed_value": 0.942,
+        "baseline_value": null,
+        "unit": "",
+        "sample_count": null,
+        "is_externally_reported": true,
+        "metadata": {}
+      }
+    ],
+    "predictions": [
+      {
+        "timestamp": "2026-10-25T12:00:00Z",
+        "target": "AAPL",
+        "predicted_value": 180.5,
+        "actual_value": 179.8,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      }
+    ],
+    "artifacts": [],
+    "environment": {
+      "environment_type": "google_colab",
+      "hostname": null,
+      "python_version": null,
+      "platform": null,
+      "git_commit": null,
+      "frameworks": {},
+      "extra": {}
+    },
+    "error_message": null,
+    "provenance_hash": "27075d9cc30c0ef7de7884563e03814707ceddc325a5e541b422369e2158a449"
+  },
+  "registry_record": {
+    "run_id": "run_tunnel_verify_001",
+    "display_name": "colab_test_model on exp_tunnel_verify",
+    "run_type": "external_general",
+    "status": "completed",
+    "created_at": "2026-10-25T19:02:17.326194+00:00",
+    "completed_at": null,
+    "lab": "general",
+    "is_external": true,
+    "source_environment": "google_colab",
+    "model_id": "colab_test_model",
+    "dataset_id": "unspecified",
+    "metrics": {
+      "test_accuracy": 0.942
+    },
+    "recomputed_metrics": {},
+    "parameters": {},
+    "predictions_count": 1,
+    "artifacts_count": 0,
+    "error_message": null,
+    "provenance_hash": "27075d9cc30c0ef7de7884563e03814707ceddc325a5e541b422369e2158a449"
+  },
+  "recomputed_metrics": {}
+}

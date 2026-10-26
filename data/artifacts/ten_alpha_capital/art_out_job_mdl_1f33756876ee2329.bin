@@ -1,0 +1,26 @@
+{
+  "job_id": "job_mdl_9b018af1e736677a",
+  "request_id": "req_06e471ee2a19458e",
+  "tenant_id": "ten_alpha_capital",
+  "user_id": "usr_quant_1",
+  "model_id": "alpha_secret_allocator",
+  "category": "allocation",
+  "status": "succeeded",
+  "execution_mode": "trusted_local_research",
+  "exit_code": 0,
+  "execution_time_ms": 0.017000013031065464,
+  "output_payload": {
+    "weights": {
+      "ALPHA_1": 0.5,
+      "ALPHA_2": 0.5
+    },
+    "expected_return": 0.12,
+    "volatility": 0.15
+  },
+  "reproducibility_hash": "0b27193cd225909bc2c110092ac50c172046532b66c97309c19609ea65afb5a8",
+  "error_category": null,
+  "error_message": null,
+  "stdout": "",
+  "stderr": "",
+  "timestamp": 1792913315.572145
+}

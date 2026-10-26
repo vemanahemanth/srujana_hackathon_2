@@ -22,6 +22,8 @@ from fragility_engine.risk import (
     calculate_expected_shortfall,
     calculate_historical_var,
     calculate_maximum_drawdown,
+    calculate_parametric_es,
+    calculate_parametric_var,
     calculate_risk_report,
 )
 
@@ -456,3 +458,161 @@ class TestRiskReport:
         assert len(report.warnings) == 2
         assert "small for 95% VaR" in report.warnings[0]
         assert "insufficient for reliable 99% VaR/ES" in report.warnings[1]
+
+
+# ============================================================================
+# 6. Parametric VaR, Parametric ES, and Quantile Interpolation Conformance
+# ============================================================================
+
+class TestParametricRiskAndQuantileConventions:
+    """Rigorous mathematical tests for Parametric VaR/ES and Quantile conventions."""
+
+    def test_ten_losses_quantile_interpolation_discrepancy(self) -> None:
+        """Verify the exact mathematical behavior of NumPy quantile methods on ten losses.
+
+        Analytical setup:
+            Losses L = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10]
+            Returns R = -L
+            alpha = 0.90 -> continuous quantile index q = 0.90 * (10 - 1) = 8.1
+            linear: L[8] + 0.1 * (L[9] - L[8]) = 0.09 + 0.1 * 0.01 = 0.0910
+            lower: floor(8.1) = 8 -> L[8] = 0.0900
+            higher: ceil(8.1) = 9 -> L[9] = 0.1000
+            nearest: round(8.1) = 8 -> L[8] = 0.0900
+            midpoint: 0.5 * (L[8] + L[9]) = 0.0950
+        """
+        losses = np.linspace(0.01, 0.10, 10)
+        returns = -losses
+
+        # 1. Linear interpolation (default)
+        var_linear = calculate_historical_var(returns, confidence_level=0.90, method="linear")
+        assert math.isclose(var_linear, 0.0910, rel_tol=1e-9)
+
+        # 2. Lower bound method
+        var_lower = calculate_historical_var(returns, confidence_level=0.90, method="lower")
+        assert math.isclose(var_lower, 0.0900, rel_tol=1e-9)
+
+        # 3. Higher bound method
+        var_higher = calculate_historical_var(returns, confidence_level=0.90, method="higher")
+        assert math.isclose(var_higher, 0.1000, rel_tol=1e-9)
+
+        # 4. Nearest rank method
+        var_nearest = calculate_historical_var(returns, confidence_level=0.90, method="nearest")
+        assert math.isclose(var_nearest, 0.0900, rel_tol=1e-9)
+
+        # 5. Midpoint method
+        var_midpoint = calculate_historical_var(returns, confidence_level=0.90, method="midpoint")
+        assert math.isclose(var_midpoint, 0.0950, rel_tol=1e-9)
+
+    def test_parametric_var_zero_mean_analytical(self) -> None:
+        """Verify parametric VaR for zero-mean symmetric returns against hand calculation.
+
+        Setup:
+            Returns R = [-0.02, -0.01, 0.01, 0.02] (N=4, mean = 0.0)
+            Sum of squared deviations: 0.0004 + 0.0001 + 0.0001 + 0.0004 = 0.0010
+            With ddof=1: variance = 0.0010 / 3 = 1/3000 -> std = sqrt(1/3000) ~= 0.018257418583505537
+            Standard normal 95% quantile z_0.95 = 1.6448536269514722
+            Under positive loss convention and mu=0:
+                VaR_0.95 = -mu + z_0.95 * sigma = 1.6448536269514722 * sqrt(1/3000) ~= 0.030030777178082987
+        """
+        returns = [-0.02, -0.01, 0.01, 0.02]
+        var_95 = calculate_parametric_var(returns, confidence_level=0.95, assume_zero_mean=True, ddof=1)
+        sigma = math.sqrt(0.0010 / 3.0)
+        z_95 = 1.6448536269514722
+        expected_var = z_95 * sigma
+
+        assert math.isclose(var_95, expected_var, rel_tol=1e-6)
+        assert math.isclose(var_95, 0.03003078, rel_tol=1e-5)
+
+    def test_parametric_var_nonzero_mean_and_mean_toggle(self) -> None:
+        """Verify nonzero mean shift in parametric VaR and effect of assume_zero_mean toggle.
+
+        Setup:
+            Returns R = [0.00, 0.01, 0.02, 0.03, 0.04] (N=5, mean mu = 0.02)
+            Squared deviations: (0-0.02)^2 + (0.01-0.02)^2 + (0.02-0.02)^2 + (0.03-0.02)^2 + (0.04-0.02)^2
+                               = 0.0004 + 0.0001 + 0.0000 + 0.0001 + 0.0004 = 0.0010
+            With ddof=1: variance = 0.0010 / 4 = 0.00025 -> sigma = sqrt(0.00025) = 0.015811388300841896
+            z_0.95 = 1.6448536269514722
+            With empirical mean:
+                VaR_0.95 = -0.02 + 1.6448536269514722 * 0.015811388300841896 = 0.006007559132517658
+            With assume_zero_mean=True:
+                VaR_0.95 = 0.0 + 1.6448536269514722 * 0.015811388300841896 = 0.026007559132517658
+        """
+        returns = [0.00, 0.01, 0.02, 0.03, 0.04]
+        var_empirical_mean = calculate_parametric_var(returns, confidence_level=0.95, assume_zero_mean=False, ddof=1)
+        var_zero_mean = calculate_parametric_var(returns, confidence_level=0.95, assume_zero_mean=True, ddof=1)
+
+        sigma = math.sqrt(0.00025)
+        z_95 = 1.6448536269514722
+        expected_empirical = -0.02 + z_95 * sigma
+        expected_zero = 0.0 + z_95 * sigma
+
+        assert math.isclose(var_empirical_mean, expected_empirical, rel_tol=1e-6)
+        assert math.isclose(var_zero_mean, expected_zero, rel_tol=1e-6)
+        assert math.isclose(var_zero_mean - var_empirical_mean, 0.02, rel_tol=1e-6)
+
+    def test_parametric_var_population_vs_sample_std(self) -> None:
+        """Verify ddof=0 (population) vs ddof=1 (sample) standard deviation conventions."""
+        returns = [-0.01, 0.00, 0.01]
+        # N=3, mean=0. Sum sq diffs = 0.0001 + 0 + 0.0001 = 0.0002
+        # ddof=1: var = 0.0002 / 2 = 0.0001 -> sigma = 0.01
+        # ddof=0: var = 0.0002 / 3 -> sigma = sqrt(0.0002 / 3)
+        z_95 = 1.6448536269514722
+        var_sample = calculate_parametric_var(returns, confidence_level=0.95, ddof=1)
+        var_pop = calculate_parametric_var(returns, confidence_level=0.95, ddof=0)
+
+        assert math.isclose(var_sample, z_95 * 0.01, rel_tol=1e-6)
+        assert math.isclose(var_pop, z_95 * math.sqrt(0.0002 / 3.0), rel_tol=1e-6)
+        assert var_sample > var_pop
+
+    def test_parametric_var_constant_returns(self) -> None:
+        """Verify constant returns produce zero volatility and VaR = -mu."""
+        returns = [0.03, 0.03, 0.03, 0.03]
+        var = calculate_parametric_var(returns, confidence_level=0.95, assume_zero_mean=False)
+        assert math.isclose(var, -0.03, abs_tol=1e-12)
+
+    def test_parametric_es_analytical_closed_form(self) -> None:
+        """Verify parametric expected shortfall satisfies ES = -mu + sigma * phi(z_alpha) / (1 - alpha).
+
+        Setup:
+            Returns R = [-0.02, -0.01, 0.01, 0.02] (mean mu = 0.0, sigma = sqrt(1/3000))
+            alpha = 0.95, z_0.95 = 1.6448536269514722
+            phi(z_0.95) = (1 / sqrt(2*pi)) * exp(-0.5 * 1.6448536269514722^2) ~= 0.10313564037803023
+            tail_density_factor = phi(z_0.95) / (1 - 0.95) = 0.10313564037803023 / 0.05 ~= 2.0627128075606046
+            ES_0.95 = 0.0 + 2.0627128075606046 * sqrt(1/3000) ~= 0.03765987787363412
+        """
+        returns = [-0.02, -0.01, 0.01, 0.02]
+        es_95 = calculate_parametric_es(returns, confidence_level=0.95, assume_zero_mean=True, ddof=1)
+        var_95 = calculate_parametric_var(returns, confidence_level=0.95, assume_zero_mean=True, ddof=1)
+
+        sigma = math.sqrt(0.0010 / 3.0)
+        z_95 = 1.6448536269514722
+        phi_z = (1.0 / math.sqrt(2 * math.pi)) * math.exp(-0.5 * z_95**2)
+        expected_es = sigma * (phi_z / 0.05)
+
+        assert math.isclose(es_95, expected_es, rel_tol=1e-6)
+        assert es_95 > var_95
+        assert math.isclose(es_95, 0.0376598, rel_tol=1e-5)
+
+    def test_parametric_rejects_invalid_inputs(self) -> None:
+        """Verify boundary validations for parametric calculations."""
+        # Confidence boundaries
+        with pytest.raises(ValueError, match="confidence_level must be strictly between"):
+            calculate_parametric_var([0.01, 0.02], confidence_level=0.0)
+        with pytest.raises(ValueError, match="confidence_level must be strictly between"):
+            calculate_parametric_var([0.01, 0.02], confidence_level=1.0)
+        with pytest.raises(ValueError, match="confidence_level must be strictly between"):
+            calculate_parametric_es([0.01, 0.02], confidence_level=-0.1)
+
+        # Insufficient observations vs ddof
+        with pytest.raises(ValueError, match="must be strictly greater than ddof"):
+            calculate_parametric_var([0.01, 0.02], ddof=2)
+        with pytest.raises(ValueError, match="at least 2 return observations"):
+            calculate_parametric_var([0.01], ddof=1)
+
+        # Non-finite values
+        with pytest.raises(ValueError, match="must be finite"):
+            calculate_parametric_var([0.01, float("nan"), -0.02])
+        with pytest.raises(ValueError, match="must be finite"):
+            calculate_parametric_es([0.01, float("inf"), -0.02])
+
+

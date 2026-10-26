@@ -1,0 +1,293 @@
+{
+  "submission": {
+    "schema_version": "1.0.0",
+    "workspace_id": "ws_test_sprint9_1792953341715",
+    "experiment_id": "exp_test_1792953341715",
+    "run_id": "ext_run_test_1792953341715",
+    "model_id": "model_nifty_gbm_1792953341715",
+    "model_version": "2.1.0",
+    "dataset_id": null,
+    "dataset_version": null,
+    "target_lab": "forecasting",
+    "run_status": "completed",
+    "started_at": "2026-10-25T18:35:41.716575+00:00",
+    "completed_at": null,
+    "parameters": {
+      "n_estimators": 50,
+      "max_depth": 3
+    },
+    "metrics": [
+      {
+        "metric_name": "reported_rmse",
+        "observed_value": 0.0014,
+        "baseline_value": null,
+        "unit": "pct",
+        "sample_count": null,
+        "is_externally_reported": true,
+        "metadata": {}
+      },
+      {
+        "metric_name": "reported_mae",
+        "observed_value": 0.0012,
+        "baseline_value": null,
+        "unit": "pct",
+        "sample_count": null,
+        "is_externally_reported": true,
+        "metadata": {}
+      }
+    ],
+    "predictions": [
+      {
+        "timestamp": "2026-10-01T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": 0.009,
+        "actual_value": 0.01,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-02T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": -0.014,
+        "actual_value": -0.015,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-03T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": 0.018,
+        "actual_value": 0.02,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-04T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": 0.006,
+        "actual_value": 0.005,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-05T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": -0.007,
+        "actual_value": -0.008,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-06T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": 0.011,
+        "actual_value": 0.012,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-07T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": -0.002,
+        "actual_value": -0.003,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-08T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": 0.008,
+        "actual_value": 0.007,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-09T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": -0.009,
+        "actual_value": -0.011,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-10T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": 0.017,
+        "actual_value": 0.018,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-11T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": 0.009,
+        "actual_value": 0.01,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-12T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": -0.014,
+        "actual_value": -0.015,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-13T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": 0.018,
+        "actual_value": 0.02,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-14T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": 0.006,
+        "actual_value": 0.005,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-15T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": -0.007,
+        "actual_value": -0.008,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-16T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": 0.011,
+        "actual_value": 0.012,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-17T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": -0.002,
+        "actual_value": -0.003,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-18T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": 0.008,
+        "actual_value": 0.007,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-19T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": -0.009,
+        "actual_value": -0.011,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      },
+      {
+        "timestamp": "2026-10-20T15:30:00+05:30",
+        "target": "NIFTY_RETURN",
+        "predicted_value": 0.017,
+        "actual_value": 0.018,
+        "horizon": "1D",
+        "confidence_lower": null,
+        "confidence_upper": null,
+        "metadata": {}
+      }
+    ],
+    "artifacts": [],
+    "environment": {
+      "environment_type": "google_colab",
+      "hostname": "colab-kernel-01",
+      "python_version": "3.11.4",
+      "platform": null,
+      "git_commit": null,
+      "frameworks": {},
+      "extra": {}
+    },
+    "error_message": null,
+    "provenance_hash": "d8049738ee4ec8939563495385ec9f0be42a20cabced4c7243bfef6e32e25d72"
+  },
+  "registry_record": {
+    "run_id": "ext_run_test_1792953341715",
+    "display_name": "model_nifty_gbm_1792953341715 on exp_test_1792953341715",
+    "run_type": "external_forecasting",
+    "status": "completed",
+    "created_at": "2026-10-25T18:35:41.716575+00:00",
+    "completed_at": null,
+    "lab": "forecasting",
+    "is_external": true,
+    "source_environment": "google_colab",
+    "model_id": "model_nifty_gbm_1792953341715",
+    "dataset_id": "unspecified",
+    "metrics": {
+      "reported_rmse": 0.0014,
+      "reported_mae": 0.0012
+    },
+    "recomputed_metrics": {
+      "independent_rmse": 0.001265,
+      "independent_mae": 0.0012,
+      "independent_directional_accuracy": 1.0,
+      "evaluated_sample_count": 20,
+      "verification_status": "INDEPENDENTLY_VERIFIED"
+    },
+    "parameters": {
+      "n_estimators": 50,
+      "max_depth": 3
+    },
+    "predictions_count": 20,
+    "artifacts_count": 0,
+    "error_message": null,
+    "provenance_hash": "d8049738ee4ec8939563495385ec9f0be42a20cabced4c7243bfef6e32e25d72"
+  },
+  "recomputed_metrics": {
+    "independent_rmse": 0.001265,
+    "independent_mae": 0.0012,
+    "independent_directional_accuracy": 1.0,
+    "evaluated_sample_count": 20,
+    "verification_status": "INDEPENDENTLY_VERIFIED"
+  }
+}

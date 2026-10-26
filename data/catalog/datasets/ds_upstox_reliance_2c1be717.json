@@ -1,0 +1,47 @@
+{
+  "dataset_id": "ds_upstox_reliance_2c1be717",
+  "name": "Upstox_RELIANCE_2026-03-02_2026-04-01",
+  "version": "1.0.0",
+  "file_path": "data/catalog/ds_upstox_reliance_2c1be717.csv",
+  "format": "csv",
+  "row_count": 20,
+  "column_mapping": {
+    "timestamp": "timestamp",
+    "open": "open",
+    "high": "high",
+    "low": "low",
+    "close": "close",
+    "volume": "volume",
+    "open_interest": "open_interest"
+  },
+  "symbols": [
+    "RELIANCE"
+  ],
+  "timestamp_col": "timestamp",
+  "frequency": "1D",
+  "currency": "INR",
+  "fingerprint": "9fe0c3db5a3af4241a69739cfdc6039c0ee173c500387c08bda3d338cb199542",
+  "created_at": "2026-10-24T21:42:33.366622+00:00",
+  "provenance": {
+    "provider": "upstox_v3_market_data",
+    "endpoint": "/v3/historical-candle",
+    "instrument_key": "NSE_EQ|INE002A01018",
+    "symbol": "RELIANCE",
+    "exchange": "NSE",
+    "start_date": "2026-03-02",
+    "end_date": "2026-04-01",
+    "row_count": 20
+  },
+  "validation_summary": {
+    "total_candles": 20,
+    "valid_candles": 20,
+    "invalid_candles": 0,
+    "is_valid": true,
+    "negative_prices_count": 0,
+    "high_low_violations": 0,
+    "open_close_out_of_bounds": 0,
+    "negative_volume_count": 0,
+    "duplicate_timestamps_count": 0,
+    "warnings": []
+  }
+}

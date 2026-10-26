@@ -1,0 +1,218 @@
+{
+  "baseline_assumptions": {
+    "annualization_factor": 252.0,
+    "confidence_level": 0.95
+  },
+  "baseline_metrics": {
+    "annualized_volatility": 0.20183462816809394,
+    "expected_shortfall": 0.0280812,
+    "expected_shortfall_95": 0.0280812,
+    "expected_shortfall_99": 0.036076,
+    "max_drawdown": 0.18846973394521016,
+    "maximum_drawdown": 0.18846973394521016,
+    "var_95": 0.023575699999999998,
+    "var_99": 0.027314500000000047,
+    "var_historical": 0.023575699999999998,
+    "volatility_annualized": 0.20183462816809394,
+    "volatility_daily": 0.012714386478427826
+  },
+  "configuration_fingerprint": "87a1d37eb5e7eb97564af40e679f22cf095a963c0dd9a5cc8706c67650f1f427",
+  "created_at": "2026-10-25T18:36:00.048290+00:00",
+  "dataset_id": "synthetic_synthetic_normal_benchmark",
+  "date_range": null,
+  "experiment_id": "studio_e2e_exp_01",
+  "input_fingerprint": "5f7fb12e4a9d027f8fdaf43b30ef6671e088556da05bbc926cce24a943e216b1",
+  "limitations": [
+    "Historical risk estimators assume stationarity and do not forecast regime transitions.",
+    "Constant return drag models sensitivity, not dynamic trade execution logs."
+  ],
+  "manifest": {
+    "configuration_fingerprint": "87a1d37eb5e7eb97564af40e679f22cf095a963c0dd9a5cc8706c67650f1f427",
+    "dataset_id": "synthetic_synthetic_normal_benchmark",
+    "environment_info": {
+      "fragility_engine_version": "1.0.0",
+      "numpy_version": "2.4.6",
+      "platform_machine": "arm64",
+      "platform_os": "Darwin",
+      "platform_release": "25.1.0",
+      "python_version": "3.14.6"
+    },
+    "execution_timestamp": "2026-10-25T18:36:00.049641+00:00",
+    "experiment_id": "studio_e2e_exp_01",
+    "input_fingerprint": "5f7fb12e4a9d027f8fdaf43b30ef6671e088556da05bbc926cce24a943e216b1",
+    "limitations": [
+      "Exact reproducibility assumes standard IEEE 754 floating point arithmetic.",
+      "Historical tail metrics are non-parametric empirical estimates."
+    ],
+    "output_fingerprint": "c3f1c3e158b3610b6797eaaf26aefb32d95be82efce6a590c69f5219d95d33b9",
+    "schema_version": "1.0.0",
+    "validation_checks_passed": 4,
+    "validation_checks_total": 4,
+    "validation_status": "PASSED",
+    "warnings": []
+  },
+  "name": "E2E Studio Fragility Audit",
+  "output_fingerprint": "c3f1c3e158b3610b6797eaaf26aefb32d95be82efce6a590c69f5219d95d33b9",
+  "perturbation_results": [
+    {
+      "absolute_changes": {
+        "expected_shortfall_95": 0.0010000000000000009,
+        "expected_shortfall_99": 0.0010000000000000009,
+        "max_drawdown": 0.04082996982308368,
+        "var_95": 0.0010000000000000009,
+        "var_99": 0.0010000000000000009,
+        "volatility_annualized": -2.7755575615628914e-17,
+        "volatility_daily": -1.734723475976807e-18
+      },
+      "baseline_metrics": {
+        "expected_shortfall_95": 0.0280812,
+        "expected_shortfall_99": 0.036076,
+        "max_drawdown": 0.18846973394521016,
+        "var_95": 0.023575699999999998,
+        "var_99": 0.027314500000000047,
+        "volatility_annualized": 0.20183462816809394,
+        "volatility_daily": 0.012714386478427826
+      },
+      "configuration": {
+        "annualization_factor": 252.0,
+        "cost_decimal": 0.001,
+        "friction_bps": 10.0
+      },
+      "description": "Applies 10.00 bps periodic cost drag to returns, assessing tail risk sensitivity.",
+      "experiment_id": "studio_e2e_exp_01_fric_10bps",
+      "limitations": [
+        "Applies constant friction per period across the return series.",
+        "Static snapshot data has no historical trade order log; dynamic turnover reconstruction is deferred."
+      ],
+      "metadata": {},
+      "observations_used": 100,
+      "perturbation_id": "return_friction_shock",
+      "perturbation_name": "Transaction Friction Drag Shock",
+      "perturbed_metrics": {
+        "expected_shortfall_95": 0.0290812,
+        "expected_shortfall_99": 0.037076,
+        "max_drawdown": 0.22929970376829384,
+        "var_95": 0.0245757,
+        "var_99": 0.028314500000000048,
+        "volatility_annualized": 0.20183462816809392,
+        "volatility_daily": 0.012714386478427825
+      },
+      "relative_changes": {
+        "expected_shortfall_95": 0.03561101377434016,
+        "expected_shortfall_99": 0.027719259341390426,
+        "max_drawdown": 0.21663939863656473,
+        "var_95": 0.04241655603014973,
+        "var_99": 0.03661059144410475,
+        "volatility_annualized": -1.3751642058424798e-16,
+        "volatility_daily": -1.364378437701314e-16
+      },
+      "warnings": []
+    },
+    {
+      "absolute_changes": {
+        "expected_shortfall_95": 0.005044799999999988,
+        "expected_shortfall_99": 0.0,
+        "max_drawdown": -0.13520231853981948,
+        "var_95": 0.0003486499999999816,
+        "var_99": 0.0061949999999999575,
+        "volatility_annualized": 0.006927466701541374,
+        "volatility_daily": 0.0004363893835228425
+      },
+      "baseline_metrics": {
+        "expected_shortfall_95": 0.0280812,
+        "expected_shortfall_99": 0.036076,
+        "max_drawdown": 0.18846973394521016,
+        "var_95": 0.023575699999999998,
+        "var_99": 0.027314500000000047,
+        "volatility_annualized": 0.20183462816809394,
+        "volatility_daily": 0.012714386478427826
+      },
+      "configuration": {
+        "annualization_factor": 252.0,
+        "baseline_window": 100,
+        "perturbed_window": 30,
+        "total_available_observations": 100
+      },
+      "description": "Assesses risk sensitivity to truncating sample lookback from 100 to 30 observations.",
+      "experiment_id": "studio_e2e_exp_01_lookback_30",
+      "limitations": [
+        "Lookback perturbation assumes returns are identically distributed within the selected window.",
+        "Does not interpolate missing dates or reconstruct intraday data."
+      ],
+      "metadata": {},
+      "observations_used": 30,
+      "perturbation_id": "lookback_window",
+      "perturbation_name": "Lookback Window Perturbation",
+      "perturbed_metrics": {
+        "expected_shortfall_95": 0.03312599999999999,
+        "expected_shortfall_99": 0.036076,
+        "max_drawdown": 0.05326741540539068,
+        "var_95": 0.02392434999999998,
+        "var_99": 0.033509500000000005,
+        "volatility_annualized": 0.20876209486963532,
+        "volatility_daily": 0.013150775861950669
+      },
+      "relative_changes": {
+        "expected_shortfall_95": 0.17965044228879065,
+        "expected_shortfall_99": 0.0,
+        "max_drawdown": -0.7173688618838079,
+        "var_95": 0.01478853225991091,
+        "var_99": 0.22680261399622717,
+        "volatility_annualized": 0.03432248848682185,
+        "volatility_daily": 0.03432248848682185
+      },
+      "warnings": []
+    }
+  ],
+  "report_id": "REP-studio_e2e_exp_01-20261025183600",
+  "schema_version": "1.0.0",
+  "sensitivity_rankings": [
+    {
+      "absolute_change": 0.0010000000000000009,
+      "absolute_impact": 0.0010000000000000009,
+      "baseline_value": 0.023575699999999998,
+      "diagnostic_summary": "Perturbation return_friction_shock shifts var_95 by +0.001000",
+      "metric_name": "var_95",
+      "parameter_name": "friction_bps",
+      "parameter_value": 10.0,
+      "perturbation_id": "return_friction_shock",
+      "perturbation_name": "Transaction Friction Drag Shock",
+      "perturbed_value": 0.0245757,
+      "rank": 1,
+      "relative_change": 0.04241655603014973,
+      "relative_impact": 0.04241655603014973,
+      "warning": null
+    },
+    {
+      "absolute_change": 0.0003486499999999816,
+      "absolute_impact": 0.0003486499999999816,
+      "baseline_value": 0.023575699999999998,
+      "diagnostic_summary": "Perturbation lookback_window shifts var_95 by +0.000349",
+      "metric_name": "var_95",
+      "parameter_name": "perturbed_window",
+      "parameter_value": 30,
+      "perturbation_id": "lookback_window",
+      "perturbation_name": "Lookback Window Perturbation",
+      "perturbed_value": 0.02392434999999998,
+      "rank": 2,
+      "relative_change": 0.01478853225991091,
+      "relative_impact": 0.01478853225991091,
+      "warning": null
+    }
+  ],
+  "status": "completed",
+  "tags": [],
+  "validation_report": {
+    "all_passed": true,
+    "check_details": {
+      "baseline_metrics_strictly_finite": true,
+      "es_greater_or_equal_var": true,
+      "mdd_within_unit_interval": true,
+      "perturbation_metrics_strictly_finite": true
+    },
+    "checks_passed": 4,
+    "checks_total": 4,
+    "failure_messages": []
+  },
+  "warnings": []
+}

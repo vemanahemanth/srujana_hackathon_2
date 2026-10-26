@@ -1,0 +1,44 @@
+{
+  "success": true,
+  "status": "success",
+  "run_id": "run_local_fae973b69eb1",
+  "model_id": "custom.ewma_risk",
+  "version": "1.0.0",
+  "metrics": {
+    "daily_volatility": 0.014143600604904702,
+    "annualized_volatility": 0.22452269906160333,
+    "var_95": 0.023264808635007746,
+    "expected_shortfall_95": 0.02917400496773693,
+    "variance": 0.00020004143807106063,
+    "var_99": 0.03290225808718981,
+    "expected_shortfall_99": 0.03769269561207103
+  },
+  "output": {
+    "var_95": 0.023264808635007746,
+    "expected_shortfall_95": 0.02917400496773693,
+    "annualized_volatility": 0.22452269906160333,
+    "var_99": 0.03290225808718981,
+    "expected_shortfall_99": 0.03769269561207103,
+    "max_drawdown": null,
+    "metrics": {
+      "daily_volatility": 0.014143600604904702,
+      "annualized_volatility": 0.22452269906160333,
+      "var_95": 0.023264808635007746,
+      "expected_shortfall_95": 0.02917400496773693,
+      "variance": 0.00020004143807106063,
+      "var_99": 0.03290225808718981,
+      "expected_shortfall_99": 0.03769269561207103
+    },
+    "warnings": [],
+    "metadata": {
+      "decay_factor_used": 0.95,
+      "sample_size": 120
+    }
+  },
+  "execution_time_ms": 0.026415998945594765,
+  "execution_mode": "trusted_local_research",
+  "provenance": {
+    "sha256_checksum": "ede22622acebea55e43f95f23e61676a4538c740876cc711b61d126a381c4617",
+    "timestamp": 1792975513.5284212
+  }
+}

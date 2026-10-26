@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FragilityShield — Quantitative Risk & Model Stress-Testing Laboratory</title>
+  <meta name="description" content="Assumption-aware portfolio risk, scenario analysis, fragility audit, and quantitative model benchmarking laboratory.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+  <!-- Main Application Wrapper -->
+  <div class="app-container">
+    
+    <!-- Persistent Sidebar Navigation -->
+    <aside class="app-sidebar" id="appSidebar">
+      <div class="sidebar-header">
+        <div class="brand-logo">
+          <div class="brand-glyph">FS</div>
+          <div class="brand-text">
+            <span class="brand-title">FragilityShield</span>
+            <span class="brand-subtitle">Risk &amp; Fragility Lab</span>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="Main Navigation">
+        <div class="nav-section-label">WORKSPACE</div>
+        <button class="nav-item active" data-tab="overview" id="navOverview">
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">Overview</span>
+        </button>
+        <button class="nav-item" data-tab="portfolio" id="navPortfolio">
+          <span class="nav-icon">💼</span>
+          <span class="nav-label">Portfolio Lab</span>
+        </button>
+        <button class="nav-item" data-tab="data-diagnostics" id="navDataDiagnostics">
+          <span class="nav-icon">📈</span>
+          <span class="nav-label">Data Lab</span>
+        </button>
+        <button class="nav-item" data-tab="risk" id="navRisk">
+          <span class="nav-icon">📉</span>
+          <span class="nav-label">Risk &amp; Attribution</span>
+        </button>
+        <button class="nav-item" data-tab="simulation" id="navSimulation">
+          <span class="nav-icon">🎲</span>
+          <span class="nav-label">Simulation &amp; Uncertainty</span>
+        </button>
+
+        <div class="nav-section-label">STRESS &amp; ASSUMPTIONS</div>
+        <button class="nav-item" data-tab="scenarios" id="navScenarios">
+          <span class="nav-icon">⚡</span>
+          <span class="nav-label">Scenario Lab</span>
+        </button>
+        <button class="nav-item" data-tab="fragility" id="navFragility">
+          <span class="nav-icon">🔬</span>
+          <span class="nav-label">Fragility Lab</span>
+          <span class="badge-accent">Core</span>
+        </button>
+        <button class="nav-item" data-tab="assumptions" id="navAssumptions">
+          <span class="nav-icon">📖</span>
+          <span class="nav-label">Assumption Registry</span>
+        </button>
+
+        <div class="nav-section-label">VALIDATION &amp; BENCHMARKS</div>
+        <button class="nav-item" data-tab="model-builder" id="navModelBuilder">
+          <span class="nav-icon">🛠️</span>
+          <span class="nav-label">Model Builder</span>
+        </button>
+        <button class="nav-item" data-tab="benchmarks" id="navBenchmarks">
+          <span class="nav-icon">⚖️</span>
+          <span class="nav-label">Model Benchmark</span>
+        </button>
+        <button class="nav-item" data-tab="backtest" id="navBacktest">
+          <span class="nav-icon">🎯</span>
+          <span class="nav-label">VaR Backtesting</span>
+        </button>
+        <button class="nav-item" data-tab="experiments" id="navExperiments">
+          <span class="nav-icon">📋</span>
+          <span class="nav-label">Reports &amp; Studio</span>
+        </button>
+        <button class="nav-item" data-tab="settings" id="navSettings">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-label">Engine Status</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="engine-badge">
+          <span class="status-dot"></span>
+          <span class="engine-text">Engine v0.1.0 • Phase 9</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="main-layout">
+      
+      <!-- Top Persistent Active Context Bar -->
+      <header class="top-context-bar" id="contextBar">
+        <div class="context-group">
+          <span class="context-label">ACTIVE PORTFOLIO:</span>
+          <span class="context-value" id="topPortfolioName">Loading...</span>
+        </div>
+        <div class="context-divider"></div>
+        <div class="context-group">
+          <span class="context-label">VALUATION:</span>
+          <span class="context-value mono" id="topPortfolioValuation">₹0.00</span>
+        </div>
+        <div class="context-divider"></div>
+        <div class="context-group">
+          <span class="context-label">HOLDINGS:</span>
+          <span class="context-value mono" id="topHoldingsCount">0 assets</span>
+        </div>
+        <div class="context-divider"></div>
+        <div class="context-group">
+          <span class="context-label">HHI CONCENTRATION:</span>
+          <span class="context-badge" id="topHhiBadge">Calculating...</span>
+        </div>
+        <div class="context-actions">
+          <button class="btn btn-secondary btn-sm" id="btnSwitchPortfolio">
+            <span>🔄 Switch / Load</span>
+          </button>
+          <button class="btn btn-primary btn-sm" id="btnQuickAudit">
+            <span>⚡ Run Fragility Audit</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Dynamic Tab Views Container -->
+      <main class="content-body" id="contentBody">
+        
+        <!-- ============================================================== -->
+        <!-- TAB 1: OVERVIEW -->
+        <!-- ============================================================== -->
+        <section class="tab-pane active" id="pane-overview">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Portfolio Research Workspace</h1>
+              <p class="page-subtitle">Assumption-aware portfolio fragility audit, risk attribution, and quantitative model validation.</p>
+            </div>
+            <div class="differentiator-banner">
+              <span class="banner-icon">💡</span>
+              <div class="banner-body">
+                <strong>Central Principle:</strong> FragilityShield does not merely compute risk metrics. It reveals how risk estimates change when the modeling assumptions behind them are challenged.
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI Cards Grid -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">TOTAL PORTFOLIO VALUE</div>
+              <div class="kpi-value mono" id="ovPortfolioValue">₹0.00</div>
+              <div class="kpi-meta" id="ovPortfolioCurrency">INR • Snapshot valuation</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">ASSET HHI CONCENTRATION</div>
+              <div class="kpi-value mono" id="ovHhiPoints">0 pts</div>
+              <div class="kpi-meta" id="ovHhiInterpretation">Antitrust Guidelines</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">ANNUALIZED VOLATILITY</div>
+              <div class="kpi-value mono text-cyan" id="ovAnnualVol">0.00%</div>
+              <div class="kpi-meta">Sample historical (252-day annualization)</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">HISTORICAL VaR (95%)</div>
+              <div class="kpi-value mono text-amber" id="ovVar95">0.00%</div>
+              <div class="kpi-meta">Positive loss fraction (L = -R)</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">EXPECTED SHORTFALL (95%)</div>
+              <div class="kpi-value mono text-rose" id="ovEs95">0.00%</div>
+              <div class="kpi-meta">Coherent Acerbi-Tasche discrete tail</div>
+            </div>
+          </div>
+
+          <!-- Overview Details 2-Column Grid -->
+          <div class="two-col-grid">
+            <!-- Sector Allocation Breakdown -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Sector Allocation &amp; Diversification</h3>
+                <span class="card-badge" id="ovSectorCount">0 Sectors</span>
+              </div>
+              <div class="card-body">
+                <div class="chart-container" id="ovSectorChart">
+                  <!-- Rendered via JS -->
+                </div>
+                <div class="sector-legend" id="ovSectorLegend"></div>
+              </div>
+            </div>
+
+            <!-- Fragility & Stress Highlights -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Assumption Sensitivity &amp; Stress Highlights</h3>
+                <span class="card-badge badge-accent">Fragility Lab</span>
+              </div>
+              <div class="card-body">
+                <div class="highlight-item">
+                  <div class="highlight-label">Standard Stress Scenario (Banking -20%, IT -10%):</div>
+                  <div class="highlight-value text-rose mono" id="ovScenarioPnl">P&amp;L: -₹0.00 (0.00%)</div>
+                </div>
+                <div class="highlight-item">
+                  <div class="highlight-label">Volatility Estimator Gap (EWMA λ=0.94 vs Sample):</div>
+                  <div class="highlight-value mono" id="ovVolGap">Δ: +0.00%</div>
+                </div>
+                <div class="highlight-item">
+                  <div class="highlight-label">Tail Confidence Shift (95% to 99% VaR):</div>
+                  <div class="highlight-value text-amber mono" id="ovTailGap">Δ: +0.00%</div>
+                </div>
+                <div class="highlight-item">
+                  <div class="highlight-label">Liquidation Friction Shock (25 bps drag):</div>
+                  <div class="highlight-value mono" id="ovLiquidationCost">-₹0.00</div>
+                </div>
+                <div class="card-actions-row">
+                  <button class="btn btn-secondary btn-sm" onclick="app.switchTab('scenarios')">Open Scenario Lab →</button>
+                  <button class="btn btn-secondary btn-sm" onclick="app.switchTab('fragility')">Open Fragility Lab →</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Model Benchmark & Backtesting Summary Row -->
+          <div class="two-col-grid mt-4">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Comparative Model Benchmarking</h3>
+                <span class="card-badge">Phase 8.1 Evaluated</span>
+              </div>
+              <div class="card-body">
+                <p class="text-muted text-sm">Compares parametric Gaussian, historical simulation, and RiskMetrics EWMA models under identical configurations.</p>
+                <div id="ovBenchmarkRankings">
+                  <!-- Populated via JS -->
+                </div>
+                <div class="notice-box text-xs mt-3">
+                  <strong>Validation Note:</strong> Model rankings reflect ordering of estimated risk metrics on sample data. A lower estimated VaR indicates a lower risk estimate, <em>NOT</em> a superior or better-calibrated risk model.
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Out-of-Sample VaR Backtesting</h3>
+                <span class="card-badge">Phase 8.2 Statistical Validation</span>
+              </div>
+              <div class="card-body">
+                <p class="text-muted text-sm">Walk-forward rolling evaluation testing whether risk forecasts could genuinely have been produced without future look-ahead bias.</p>
+                <div class="kpi-mini-grid">
+                  <div class="kpi-mini">
+                    <span class="kpi-mini-label">Kupiec POF Coverage</span>
+                    <span class="kpi-mini-value" id="ovKupiecStatus">UNTESTED</span>
+                  </div>
+                  <div class="kpi-mini">
+                    <span class="kpi-mini-label">Observed Breach Rate</span>
+                    <span class="kpi-mini-value mono" id="ovBreachRate">0.00%</span>
+                  </div>
+                  <div class="kpi-mini">
+                    <span class="kpi-mini-label">Christoffersen Indep.</span>
+                    <span class="kpi-mini-value" id="ovChrisStatus">UNTESTED</span>
+                  </div>
+                </div>
+                <div class="card-actions-row mt-3">
+                  <button class="btn btn-primary btn-sm" onclick="app.switchTab('backtest')">Run Walk-Forward Backtest →</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- TAB 2: PORTFOLIO LAB -->
+        <!-- ============================================================== -->
+        <section class="tab-pane" id="pane-portfolio">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Portfolio Lab</h1>
+              <p class="page-subtitle">Manage holdings, inspect asset and sector weights, and evaluate Herfindahl-Hirschman concentration.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-secondary" id="btnLoadSamplePortfolio">Load Sample ₹10L NSE</button>
+              <button class="btn btn-primary" id="btnOpenUploadModal">Import JSON / CSV</button>
+            </div>
+          </div>
+
+          <!-- Concentration & Allocation Overview Grid -->
+          <div class="three-col-grid">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Total Valuation</h3>
+              </div>
+              <div class="card-body">
+                <div class="hero-stat mono" id="plTotalValuation">₹0.00</div>
+                <div class="text-sm text-muted" id="plValuationMeta">Currency: INR • Base Snapshot</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Asset Concentration (HHI)</h3>
+              </div>
+              <div class="card-body">
+                <div class="hero-stat mono text-amber" id="plAssetHhi">0.0000</div>
+                <div class="text-sm" id="plAssetHhiMeta">HHI Points: 0 pts • Calculating...</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Sector Concentration (HHI)</h3>
+              </div>
+              <div class="card-body">
+                <div class="hero-stat mono text-cyan" id="plSectorHhi">0.0000</div>
+                <div class="text-sm" id="plSectorHhiMeta">HHI Points: 0 pts • Calculating...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Holdings Table Card -->
+          <div class="card mt-4">
+            <div class="card-header">
+              <h3 class="card-title">Constituent Holdings</h3>
+              <span class="card-badge" id="plHoldingsBadge">0 Positions</span>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="data-table" id="plHoldingsTable">
+                  <thead>
+                    <tr>
+                      <th>Asset ID</th>
+                      <th>Sector</th>
+                      <th class="text-right">Quantity</th>
+                      <th class="text-right">Price</th>
+                      <th class="text-right">Market Value</th>
+                      <th class="text-right">Weight (%)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="plHoldingsTbody">
+                    <tr><td colspan="6" class="text-center text-muted">No holdings loaded.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- TAB: DATA LAB & TIME SERIES DIAGNOSTICS -->
+        <!-- ============================================================== -->
+        <section class="tab-pane" id="pane-data-diagnostics">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Data Lab &amp; Time Series Diagnostics</h1>
+              <p class="page-subtitle">Assess sample moments, tail fatness, Jarque-Bera normality, autocorrelation, and automated model suitability.</p>
+            </div>
+            <div class="header-controls">
+              <div class="control-group">
+                <label for="dataSeriesSelector">Dataset Source:</label>
+                <select id="dataSeriesSelector" class="select-control">
+                  <option value="portfolio_returns" selected>Active Portfolio Return Series</option>
+                  <option value="fat_tailed">Synthetic Fat-Tailed (Student-t ν=3)</option>
+                  <option value="autocorrelated">Autocorrelated (AR(1) ρ=0.45)</option>
+                  <option value="normal">Synthetic Gaussian IID</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" id="btnRunDataDiagnostics">Run Diagnostics</button>
+            </div>
+          </div>
+
+          <!-- Diagnostic KPI Cards -->
+          <div class="six-col-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+            <div class="kpi-card">
+              <div class="kpi-label">SAMPLE SKEWNESS</div>
+              <div class="kpi-value mono" id="diagSkewness">0.00</div>
+              <div class="kpi-meta" id="diagSkewnessDesc">Symmetric</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">EXCESS KURTOSIS</div>
+              <div class="kpi-value mono text-amber" id="diagKurtosis">0.00</div>
+              <div class="kpi-meta" id="diagKurtosisDesc">Normal Baseline (0.0)</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">JARQUE-BERA TEST</div>
+              <div class="kpi-value mono text-cyan" id="diagJbStat">0.00</div>
+              <div class="kpi-meta" id="diagJbPval">p-value: 1.000</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">NORMALITY VERDICT</div>
+              <div class="kpi-value" id="diagNormalityBadge"><span class="badge-accent">PENDING</span></div>
+              <div class="kpi-meta">5% significance cutoff</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">LAG-1 AUTOCORRELATION (ρ₁)</div>
+              <div class="kpi-value mono" id="diagAutocorr">0.00</div>
+              <div class="kpi-meta" id="diagAutocorrDesc">IID plausible</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">ZERO-RETURN FREQ</div>
+              <div class="kpi-value mono" id="diagZeroFreq">0.0%</div>
+              <div class="kpi-meta">Illiquidity / Stale pricing</div>
+            </div>
+          </div>
+
+          <!-- Distribution Visualization & Suitability -->
+          <div class="two-col-grid mt-4">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Empirical Return Distribution Histogram</h3>
+                <span class="card-badge" id="diagObservationsBadge">0 Observations</span>
+              </div>
+              <div class="card-body">
+                <div class="chart-container-large" id="diagDistributionChart">
+                  <!-- SVG Histogram Rendered via JS -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Automated Model Suitability Recommendations -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Automated Model Suitability Recommendations</h3>
+                <span class="card-badge badge-accent">Assumption Engine</span>
+              </div>
+              <div class="card-body" id="diagSuitabilityList">
+                <div class="text-muted text-sm">Run diagnostics to generate quantitative model suitability recommendations based on empirical moments.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- TAB 3: RISK ANALYSIS -->
+        <!-- ============================================================== -->
+        <section class="tab-pane" id="pane-risk">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Risk Analysis</h1>
+              <p class="page-subtitle">Volatility, Historical Value at Risk, Coherent Expected Shortfall, and Maximum Drawdown.</p>
+            </div>
+            <div class="header-controls">
+              <div class="control-group">
+                <label for="riskConfidence">Confidence Level:</label>
+                <select id="riskConfidence" class="select-control">
+                  <option value="0.95" selected>95% Confidence</option>
+                  <option value="0.99">99% Confidence</option>
+                  <option value="0.90">90% Confidence</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" id="btnRecalculateRisk">Recalculate Risk</button>
+            </div>
+          </div>
+
+          <!-- Risk Metrics Cards Grid -->
+          <div class="four-col-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">ANNUALIZED VOLATILITY</div>
+              <div class="kpi-value mono text-cyan" id="rkAnnualVol">0.00%</div>
+              <div class="kpi-meta" id="rkDailyVol">Daily: 0.00% (ddof=1)</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">HISTORICAL VaR</div>
+              <div class="kpi-value mono text-amber" id="rkVarVal">0.00%</div>
+              <div class="kpi-meta">Empirical quantile loss (L = -R)</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">EXPECTED SHORTFALL (CVaR)</div>
+              <div class="kpi-value mono text-rose" id="rkEsVal">0.00%</div>
+              <div class="kpi-meta">Acerbi-Tasche (2002) coherent tail</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">MAXIMUM DRAWDOWN</div>
+              <div class="kpi-value mono text-rose" id="rkMddVal">0.00%</div>
+              <div class="kpi-meta" id="rkMddDur">Duration: 0 periods</div>
+            </div>
+          </div>
+
+          <!-- Equity Curve & Drawdown Chart -->
+          <div class="card mt-4">
+            <div class="card-header">
+              <h3 class="card-title">Equity Curve &amp; Peak-to-Trough Drawdown Dynamics</h3>
+              <span class="card-badge">Daily Interval</span>
+            </div>
+            <div class="card-body">
+              <div class="chart-container-large" id="rkEquityChart">
+                <!-- SVG Chart Rendered via JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Explanation Panels -->
+          <div class="two-col-grid mt-4">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Mathematical Formula Specifications</h3>
+              </div>
+              <div class="card-body text-sm space-y-3">
+                <div>
+                  <strong>Historical VaR (Positive Loss Convention):</strong>
+                  <p class="text-muted">$\text{VaR}_\alpha = \text{Quantile}_{1-\alpha}(R) \times (-1)$. A positive VaR represents potential loss fraction.</p>
+                </div>
+                <div>
+                  <strong>Coherent Expected Shortfall (Acerbi &amp; Tasche 2002):</strong>
+                  <p class="text-muted">Calculates discrete tail expectation with exact fractional weighting. Mathematically satisfies sub-additivity: $\text{ES}_\alpha \ge \text{VaR}_\alpha$.</p>
+                </div>
+                <div>
+                  <strong>Drawdown Dynamics:</strong>
+                  <p class="text-muted">Tracks ongoing vs fully-recovered drawdowns, calculating peak-to-trough duration and recovery duration.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Assumptions &amp; Critical Limitations</h3>
+              </div>
+              <div class="card-body text-sm space-y-3">
+                <div class="notice-box text-xs">
+                  <strong>Important Caveat:</strong> Historical risk metrics reflect past sample dispersion and empirical quantiles. They do <em>NOT</em> guarantee future downside protection, stationarity, or liquidity under regime shifts.
+                </div>
+                <ul class="bullet-list text-muted">
+                  <li>Assumes independent identically distributed (i.i.d.) returns over the sample window.</li>
+                  <li>Does not account for non-linear option convexities or liquidity gaps.</li>
+                  <li>Annualization factor assumes 252 discrete trading days per calendar year.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Euler Marginal Risk Allocation & Component VaR Decomposition -->
+          <div class="card mt-4">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title">Euler Marginal Risk Allocation &amp; Component VaR Decomposition</h3>
+                <p class="text-xs text-muted">Decomposes portfolio VaR into constituent asset and sector risk contributions, satisfying Euler's Homogeneity Theorem: $\sum \text{Component VaR}_i = \text{Portfolio VaR}$.</p>
+              </div>
+              <button class="btn btn-secondary btn-sm" id="btnCalculateAttribution">Recompute Euler Risk Allocation</button>
+            </div>
+            <div class="card-body">
+              <div class="notice-box text-xs mb-3" id="eulerReconciliationBanner">
+                <strong>Euler Exact Homogeneity Check:</strong> <span class="mono" id="eulerSumText">Calculating...</span>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table" id="attributionTable">
+                  <thead>
+                    <tr>
+                      <th>Asset ID</th>
+                      <th>Sector</th>
+                      <th class="text-right">Weight</th>
+                      <th class="text-right">Asset Vol</th>
+                      <th class="text-right">Beta to Port (β)</th>
+                      <th class="text-right">Marginal VaR</th>
+                      <th class="text-right">Component VaR</th>
+                      <th class="text-right">% of Total Risk</th>
+                      <th class="text-center">Role</th>
+                    </tr>
+                  </thead>
+                  <tbody id="attributionTableBody">
+                    <tr><td colspan="9" class="text-center text-muted">Click 'Recompute Euler Risk Allocation' to view holding decomposition.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Sector Risk Contributions -->
+              <h4 class="card-title text-sm mt-4 mb-2">Sector Aggregate Risk Breakdown</h4>
+              <div class="table-responsive">
+                <table class="data-table" id="sectorRiskTable">
+                  <thead>
+                    <tr>
+                      <th>Sector</th>
+                      <th class="text-right">Component VaR (95%)</th>
+                      <th class="text-right">% of Portfolio Risk</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sectorRiskTableBody">
+                    <tr><td colspan="3" class="text-center text-muted">Awaiting calculation...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- TAB: SIMULATION & ESTIMATION UNCERTAINTY LAB -->
+        <!-- ============================================================== -->
+        <section class="tab-pane" id="pane-simulation">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Simulation &amp; Uncertainty Lab</h1>
+              <p class="page-subtitle">Forward multi-path Monte Carlo risk projection and non-parametric bootstrap estimation uncertainty bands.</p>
+            </div>
+          </div>
+
+          <!-- Section 1: Forward Monte Carlo -->
+          <div class="card mb-4">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title">Forward Multi-Path Monte Carlo Simulation</h3>
+                <p class="text-xs text-muted">Projects asset paths under Gaussian or heavy-tailed Student-t innovations to determine forward terminal loss distributions.</p>
+              </div>
+              <div class="header-controls">
+                <div class="control-group">
+                  <label for="mcHorizon">Horizon (Days):</label>
+                  <input type="number" id="mcHorizon" class="input-control" value="30" min="5" max="252" style="width: 75px;">
+                </div>
+                <div class="control-group">
+                  <label for="mcSims">Paths:</label>
+                  <select id="mcSims" class="select-control">
+                    <option value="500">500</option>
+                    <option value="1000" selected>1,000</option>
+                    <option value="2500">2,500</option>
+                  </select>
+                </div>
+                <div class="control-group">
+                  <label for="mcDist">Innovation:</label>
+                  <select id="mcDist" class="select-control">
+                    <option value="student_t" selected>Student-t (Fat-Tailed ν=5)</option>
+                    <option value="gaussian">Gaussian Normal</option>
+                  </select>
+                </div>
+                <button class="btn btn-primary btn-sm" id="btnRunMonteCarlo">Run Simulation</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="four-col-grid mb-3">
+                <div class="kpi-card">
+                  <div class="kpi-label">FORWARD VaR (95%)</div>
+                  <div class="kpi-value mono text-amber" id="mcVar95">0.00%</div>
+                  <div class="kpi-meta">Terminal period quantile loss</div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-label">FORWARD ES (95%)</div>
+                  <div class="kpi-value mono text-rose" id="mcEs95">0.00%</div>
+                  <div class="kpi-meta">Tail conditional expectation</div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-label">5th PERCENTILE OUTCOME</div>
+                  <div class="kpi-value mono text-rose" id="mcEnvelope5th">₹0.00</div>
+                  <div class="kpi-meta">Severe downside path</div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-label">MEDIAN OUTCOME (50th)</div>
+                  <div class="kpi-value mono text-cyan" id="mcEnvelopeMedian">₹0.00</div>
+                  <div class="kpi-meta">Central expectation path</div>
+                </div>
+              </div>
+
+              <!-- Fan Chart Envelope Container -->
+              <div class="chart-container-large" id="mcFanChart">
+                <!-- SVG Fan Chart Rendered via JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Non-Parametric Bootstrap Estimation Uncertainty -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title">Bootstrap Estimation Uncertainty &amp; Sampling Confidence Intervals</h3>
+                <p class="text-xs text-muted">Resamples historical empirical returns with replacement to reveal how sampling noise affects VaR and ES estimates.</p>
+              </div>
+              <div class="header-controls">
+                <div class="control-group">
+                  <label for="bsIter">Bootstraps:</label>
+                  <select id="bsIter" class="select-control">
+                    <option value="500">500</option>
+                    <option value="1000" selected>1,000</option>
+                    <option value="2000">2,000</option>
+                  </select>
+                </div>
+                <button class="btn btn-secondary btn-sm" id="btnRunBootstrap">Run Bootstrap</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="two-col-grid">
+                <div class="kpi-card">
+                  <div class="kpi-label">HISTORICAL VaR (95%) CONFIDENCE INTERVAL</div>
+                  <div class="kpi-value mono text-amber" id="bsVarPoint">0.00%</div>
+                  <div class="kpi-meta" id="bsVarCi">95% CI: [0.00%, 0.00%] • SE: ±0.00%</div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-label">EXPECTED SHORTFALL (95%) CONFIDENCE INTERVAL</div>
+                  <div class="kpi-value mono text-rose" id="bsEsPoint">0.00%</div>
+                  <div class="kpi-meta" id="bsEsCi">95% CI: [0.00%, 0.00%] • SE: ±0.00%</div>
+                </div>
+              </div>
+
+              <div class="chart-container mt-3" id="bsUncertaintyDisplay">
+                <!-- Rendered visual interval bands -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- TAB 4: SCENARIO LAB -->
+        <!-- ============================================================== -->
+        <section class="tab-pane" id="pane-scenarios">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Scenario Lab</h1>
+              <p class="page-subtitle">Stress-test portfolios against sector shocks, market turbulence, and asset-specific price shifts.</p>
+            </div>
+            <div class="header-controls">
+              <div class="control-group">
+                <label for="scenarioPreset">Benchmark Preset:</label>
+                <select id="scenarioPreset" class="select-control">
+                  <option value="banking_minus_20_it_minus_10" selected>Banking -20% &amp; IT -10%</option>
+                  <option value="custom">Custom Configuration</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" id="btnExecuteScenario">Execute Stress Test</button>
+            </div>
+          </div>
+
+          <!-- Scenario Results Summary Grid -->
+          <div class="three-col-grid">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Original Valuation</h3></div>
+              <div class="card-body">
+                <div class="hero-stat mono" id="scOriginalValue">₹0.00</div>
+                <div class="text-sm text-muted">Pre-shock portfolio value</div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Stressed Valuation</h3></div>
+              <div class="card-body">
+                <div class="hero-stat mono text-amber" id="scStressedValue">₹0.00</div>
+                <div class="text-sm text-muted">Post-shock portfolio value</div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Scenario P&amp;L</h3></div>
+              <div class="card-body">
+                <div class="hero-stat mono text-rose" id="scTotalPnl">-₹0.00</div>
+                <div class="text-sm" id="scReturnMeta">Scenario Return: 0.00%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sector Loss Attribution Table -->
+          <div class="card mt-4">
+            <div class="card-header">
+              <h3 class="card-title">Sector Loss Attribution</h3>
+              <span class="card-badge">P&amp;L Decomposition</span>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="data-table" id="scSectorTable">
+                  <thead>
+                    <tr>
+                      <th>Sector</th>
+                      <th class="text-right">Original Value</th>
+                      <th class="text-right">Applied Shock</th>
+                      <th class="text-right">Stressed Value</th>
+                      <th class="text-right">P&amp;L Contribution</th>
+                      <th class="text-right">% of Portfolio Loss</th>
+                    </tr>
+                  </thead>
+                  <tbody id="scSectorTbody">
+                    <tr><td colspan="6" class="text-center text-muted">Execute scenario to view sector attribution.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- TAB 5: FRAGILITY LAB (CENTRAL DIFFERENTIATOR) -->
+        <!-- ============================================================== -->
+        <section class="tab-pane" id="pane-fragility">
+          <div class="page-header">
+            <div>
+              <div class="badge-accent mb-1">CENTRAL DIFFERENTIATOR</div>
+              <h1 class="page-title">Fragility Lab — Assumption Sensitivity Audit</h1>
+              <p class="page-subtitle">Investigate how risk estimates change when underlying modeling assumptions are perturbed.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-primary" id="btnRunFragilityAudit">Run Full Fragility Audit</button>
+            </div>
+          </div>
+
+          <!-- Differentiator Explainer Box -->
+          <div class="differentiator-card mb-4">
+            <div class="diff-icon">🔬</div>
+            <div class="diff-body">
+              <h4 class="diff-title">Why Fragility Analysis Matters</h4>
+              <p class="diff-text">Conventional risk engines produce single-point estimates (e.g. "VaR is 2.3%"). The Fragility Lab challenges this false certainty by applying systematic parameter perturbations (lookback window shifts, alternative volatility estimators, transaction friction, and confidence shifts) and ranking which modeling choices have the greatest impact on reported risk.</p>
+            </div>
+          </div>
+
+          <!-- Sensitivity Tornado Ranking -->
+          <div class="card mb-4">
+            <div class="card-header">
+              <h3 class="card-title">Sensitivity Tornado Ranking: Which Assumptions Matter Most?</h3>
+              <span class="card-badge">Target: Annualized Volatility</span>
+            </div>
+            <div class="card-body">
+              <div id="fragilityTornadoChart" class="chart-container">
+                <!-- Tornado sensitivity bars rendered via JS -->
+              </div>
+              <div class="notice-box text-xs mt-3">
+                <strong>Ranking Rationale:</strong> Assumptions are ranked descending by their absolute metric delta (|M1 - M0|). A larger bar indicates that the risk estimate is highly sensitive to that specific assumption.
+              </div>
+            </div>
+          </div>
+
+          <!-- Detailed Perturbation Experiments Table -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Perturbation Experiment Diagnostics</h3>
+              <span class="card-badge" id="fragilityExpCount">0 Experiments</span>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="data-table" id="fragilityExpTable">
+                  <thead>
+                    <tr>
+                      <th>Perturbation Model</th>
+                      <th>Tested Assumption</th>
+                      <th class="text-right">Baseline Metric</th>
+                      <th class="text-right">Perturbed Metric</th>
+                      <th class="text-right">Absolute Change</th>
+                      <th class="text-right">Relative Shift (%)</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fragilityExpTbody">
+                    <tr><td colspan="7" class="text-center text-muted">Run fragility audit to view parameter sensitivities.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- TAB: ASSUMPTION REGISTRY & FAILURE REGIMES -->
+        <!-- ============================================================== -->
+        <section class="tab-pane" id="pane-assumptions">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Model Assumption Registry</h1>
+              <p class="page-subtitle">Centralized catalog of mathematical formulations, distribution hypotheses, failure regimes, and fragility vulnerabilities.</p>
+            </div>
+            <div class="header-controls">
+              <button class="btn btn-secondary btn-sm" id="btnRefreshAssumptions">Refresh Catalog</button>
+            </div>
+          </div>
+
+          <div class="notice-box mb-4">
+            <strong>CORE PRINCIPLE:</strong> All quantitative financial models are approximations that require explicit mathematical assumptions. Risk estimation failure typically occurs not from computational errors, but because prevailing market regimes violate these underlying assumptions.
+          </div>
+
+          <div id="assumptionsCatalogContainer" class="space-y-4">
+            <!-- Catalog Cards populated via JS -->
+            <div class="text-center text-muted">Loading assumption catalog...</div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- TAB: MODEL BUILDER & CUSTOM EXTENSIONS -->
+        <!-- ============================================================== -->
+        <section class="tab-pane" id="pane-model-builder">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Model Builder &amp; Plugin Registry</h1>
+              <p class="page-subtitle">Assemble, parameterize, and dynamically register custom quantitative models for immediate benchmarking and backtesting.</p>
+            </div>
+          </div>
+
+          <div class="two-col-grid">
+            <!-- Form to Build & Register Model -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Assemble Custom Quantitative Model</h3>
+              </div>
+              <div class="card-body">
+                <form id="formRegisterModel" onsubmit="return false;" class="space-y-3">
+                  <div class="form-group">
+                    <label for="mbModelId">Model Unique Identifier (Alphanumeric):</label>
+                    <input type="text" id="mbModelId" class="input-control" placeholder="e.g. student_t_nu4" value="student_t_nu4">
+                  </div>
+                  <div class="form-group">
+                    <label for="mbModelName">Display Name:</label>
+                    <input type="text" id="mbModelName" class="input-control" placeholder="e.g. Student-t Heavy-Tail (ν=4)" value="Student-t Heavy-Tail (ν=4)">
+                  </div>
+                  <div class="form-group">
+                    <label for="mbModelFamily">Model Family:</label>
+                    <select id="mbModelFamily" class="select-control">
+                      <option value="student_t" selected>Student-t Parametric (Heavy Tails)</option>
+                      <option value="ewma">EWMA Volatility (RiskMetrics Decay)</option>
+                      <option value="cornish_fisher">Cornish-Fisher Expansion (Skew/Kurtosis)</option>
+                      <option value="historical_quantile">Configurable Historical Quantile</option>
+                    </select>
+                  </div>
+
+                  <!-- Dynamic Parameter Fields -->
+                  <div id="mbParamsContainer" class="p-3" style="background: var(--bg-surface-subtle); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                    <div class="form-group" id="groupStudentT">
+                      <label for="mbParamDf">Degrees of Freedom (ν in [2.5, 100]):</label>
+                      <input type="number" id="mbParamDf" class="input-control" value="4.0" step="0.5" min="2.5" max="100.0">
+                      <span class="text-xs text-muted">Lower ν creates thicker tails and higher severe loss estimates.</span>
+                    </div>
+                    <div class="form-group" id="groupEwma" style="display: none;">
+                      <label for="mbParamLambda">Decay Factor (λ in [0.80, 0.999]):</label>
+                      <input type="number" id="mbParamLambda" class="input-control" value="0.94" step="0.01" min="0.80" max="0.999">
+                      <span class="text-xs text-muted">RiskMetrics standard is 0.94; lower values react faster to recent spikes.</span>
+                    </div>
+                    <div class="form-group" id="groupHistoricalQuantile" style="display: none;">
+                      <label for="mbParamMethod">Quantile Interpolation Method:</label>
+                      <select id="mbParamMethod" class="select-control">
+                        <option value="linear" selected>Linear</option>
+                        <option value="lower">Lower</option>
+                        <option value="higher">Higher</option>
+                        <option value="midpoint">Midpoint</option>
+                        <option value="nearest">Nearest</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="mbDescription">Research Notes / Description:</label>
+                    <textarea id="mbDescription" class="textarea-control" rows="2" placeholder="Custom calibrated model for high-kurtosis market regimes."></textarea>
+                  </div>
+
+                  <button class="btn btn-primary w-full" id="btnRegisterModel">Validate &amp; Register Model</button>
+                </form>
+
+                <div id="mbRegistrationResult" class="mt-3" style="display: none;"></div>
+              </div>
+            </div>
+
+            <!-- Active Registry Models List -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Currently Registered Models in Memory</h3>
+                <span class="card-badge" id="mbRegisteredCount">0 Models</span>
+              </div>
+              <div class="card-body">
+                <p class="text-xs text-muted mb-3">All registered models are immediately available across the REST API for Model Benchmarking, VaR Backtesting, and Fragility Stress Attacks.</p>
+                <div id="mbRegisteredList" class="space-y-2">
+                  <!-- Populated via JS -->
+                </div>
+                <div class="mt-4 pt-3 border-t" style="border-top: 1px solid var(--border-subtle);">
+                  <button class="btn btn-secondary btn-sm" id="btnGoToBenchmark">⚖️ Open in Model Benchmark</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- TAB 6: MODEL BENCHMARKING -->
+        <!-- ============================================================== -->
+        <section class="tab-pane" id="pane-benchmarks">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Quantitative Model Benchmarking</h1>
+              <p class="page-subtitle">Compare registered risk model plugins under identical sample windows and configuration contracts.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-primary" id="btnExecuteBenchmark">Execute Benchmark</button>
+            </div>
+          </div>
+
+          <!-- Benchmark Disclaimer -->
+          <div class="notice-box mb-4">
+            <strong>RANKING DISCLAIMER (Phase 8.1):</strong> Model rankings reflect ordering of estimated risk metrics on the provided sample data under specified model assumptions. A lower estimated Value-at-Risk or Volatility reflects a lower risk estimate, <em>NOT</em> a superior, more accurate, or better-calibrated risk model. Out-of-sample backtesting against realized outcomes is required to assess forecast accuracy.
+          </div>
+
+          <!-- Comparative Rankings Card -->
+          <div class="card mb-4">
+            <div class="card-header">
+              <h3 class="card-title">Comparative Model Rankings</h3>
+              <span class="card-badge" id="bmTargetMetricBadge">Target: var_95 (lower_estimated_risk)</span>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="data-table" id="bmRankingsTable">
+                  <thead>
+                    <tr>
+                      <th class="text-center">Rank</th>
+                      <th>Plugin ID</th>
+                      <th>Model Name</th>
+                      <th class="text-right">Metric Value</th>
+                      <th>Unit</th>
+                      <th>Interpretation</th>
+                      <th class="text-center">Tied</th>
+                    </tr>
+                  </thead>
+                  <tbody id="bmRankingsTbody">
+                    <tr><td colspan="7" class="text-center text-muted">Execute benchmark to display comparative standings.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Multi-Model Output Fingerprints & Cryptographic Manifest -->
+          <div class="two-col-grid">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Cryptographic Provenance</h3></div>
+              <div class="card-body text-xs space-y-2 mono">
+                <div><strong>Input Data Fingerprint:</strong> <span id="bmInputFp" class="text-muted">None</span></div>
+                <div><strong>Configuration Fingerprint:</strong> <span id="bmConfigFp" class="text-muted">None</span></div>
+                <div><strong>Output Results Fingerprint:</strong> <span id="bmOutputFp" class="text-muted">None</span></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Registered Model Capabilities</h3></div>
+              <div class="card-body">
+                <div id="bmRegisteredModelsList" class="space-y-2 text-xs">
+                  <!-- Populated via JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- TAB 7: VAR BACKTESTING -->
+        <!-- ============================================================== -->
+        <section class="tab-pane" id="pane-backtest">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Out-of-Sample VaR Backtesting</h1>
+              <p class="page-subtitle">Walk-forward rolling evaluation, forecast alignment, and statistical hypothesis testing (Kupiec &amp; Christoffersen).</p>
+            </div>
+            <div class="header-controls">
+              <div class="control-group">
+                <label for="btModelSelect">Model to Backtest:</label>
+                <select id="btModelSelect" class="select-control">
+                  <option value="builtin.parametric_gaussian">Parametric Gaussian VaR</option>
+                  <option value="builtin.historical_simulation">Historical Simulation VaR</option>
+                  <option value="builtin.ewma">RiskMetrics EWMA VaR</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" id="btnRunBacktest">Run Walk-Forward Backtest</button>
+            </div>
+          </div>
+
+          <!-- Backtest Key Stats Grid -->
+          <div class="four-col-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">KUPIEC POF COVERAGE</div>
+              <div class="kpi-value" id="btKupiecDecision">UNTESTED</div>
+              <div class="kpi-meta" id="btKupiecPval">P-Value: 1.000000</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">OBSERVED BREACH RATE</div>
+              <div class="kpi-value mono text-amber" id="btObservedRate">0.00%</div>
+              <div class="kpi-meta" id="btBreachCount">0 breaches / 0 forecasts</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">NOMINAL RATE ($p_0$)</div>
+              <div class="kpi-value mono">5.00%</div>
+              <div class="kpi-meta">Confidence: 95.0%</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">CHRISTOFFERSEN INDEP.</div>
+              <div class="kpi-value" id="btChrisDecision">UNTESTED</div>
+              <div class="kpi-meta" id="btChrisPval">P-Value: 1.000000</div>
+            </div>
+          </div>
+
+          <!-- Breach Timeline Visualizer -->
+          <div class="card mt-4">
+            <div class="card-header">
+              <h3 class="card-title">Out-of-Sample Breach Exceedance Timeline</h3>
+              <span class="card-badge">Strict Inequality: L &gt; VaR</span>
+            </div>
+            <div class="card-body">
+              <div class="chart-container" id="btBreachTimeline">
+                <!-- Timeline flags rendered via JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Statistical Contingency Matrix & Limits -->
+          <div class="two-col-grid mt-4">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Christoffersen 2-State Markov Transitions</h3></div>
+              <div class="card-body">
+                <table class="data-table text-sm">
+                  <thead>
+                    <tr>
+                      <th>State Transition</th>
+                      <th>Count</th>
+                      <th>Interpretation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>$n_{00}$ (Non-breach → Non-breach)</td><td class="mono" id="btN00">0</td><td>Quiet period persistence</td></tr>
+                    <tr><td>$n_{01}$ (Non-breach → Breach)</td><td class="mono" id="btN01">0</td><td>Isolated loss emergence</td></tr>
+                    <tr><td>$n_{10}$ (Breach → Non-breach)</td><td class="mono" id="btN10">0</td><td>Rapid rebound recovery</td></tr>
+                    <tr><td>$n_{11}$ (Breach → Breach)</td><td class="mono text-rose" id="btN11">0</td><td><strong>Breach clustering (tail risk)</strong></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Statistical Safeguards &amp; Notices</h3></div>
+              <div class="card-body text-xs space-y-2">
+                <div class="notice-box">
+                  <strong>Statistical Limitation:</strong> Failure to reject the null hypothesis ($p \ge 0.05$) does <em>NOT</em> prove the model is correct. It merely indicates empirical compatibility with nominal breach probability under the tested sample size.
+                </div>
+                <p class="text-muted">First-order Markov property evaluates lag-1 transition clustering. Small breach samples ($n_{11}=0$) naturally limit test power to detect multi-period volatility clustering.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- TAB 8: EXPERIMENTS & REPORTS -->
+        <!-- ============================================================== -->
+        <section class="tab-pane" id="pane-experiments">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Experiment Studio &amp; Reports</h1>
+              <p class="page-subtitle">Cryptographic reproducibility manifests, drift audits, and multi-format report exports.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-secondary" id="btnExportMarkdown">Export Markdown</button>
+              <button class="btn btn-secondary" id="btnExportJson">Export JSON</button>
+              <button class="btn btn-primary" id="btnRunStudioExp">Execute Studio Experiment</button>
+            </div>
+          </div>
+
+          <!-- Studio Report Preview Card -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Generated Experiment Publication Report</h3>
+              <span class="card-badge" id="stStatusBadge">READY</span>
+            </div>
+            <div class="card-body">
+              <pre class="code-preview" id="stReportPreview">Execute an experiment or benchmark to generate an audit report.</pre>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- TAB 9: SETTINGS & ENGINE STATUS -->
+        <!-- ============================================================== -->
+        <section class="tab-pane" id="pane-settings">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">FragilityShield Engine Status &amp; Capabilities</h1>
+              <p class="page-subtitle">System configuration, verifiable modules, and security containment boundaries.</p>
+            </div>
+          </div>
+
+          <div class="two-col-grid">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Core Subsystems Status</h3></div>
+              <div class="card-body">
+                <ul class="status-list">
+                  <li class="status-item"><span class="badge-success">OPERATIONAL</span> Portfolio Lab &amp; Concentration Engine (Phase 1–2)</li>
+                  <li class="status-item"><span class="badge-success">OPERATIONAL</span> Risk Calculation Engine (Phase 3)</li>
+                  <li class="status-item"><span class="badge-success">OPERATIONAL</span> Scenario Stress Lab (Phase 4)</li>
+                  <li class="status-item"><span class="badge-success">OPERATIONAL</span> Fragility Lab &amp; Sensitivity Ranking (Phase 5)</li>
+                  <li class="status-item"><span class="badge-success">OPERATIONAL</span> Validation &amp; Reproducibility Lab (Phase 6)</li>
+                  <li class="status-item"><span class="badge-success">OPERATIONAL</span> Experiment Studio &amp; Catalog (Phase 7)</li>
+                  <li class="status-item"><span class="badge-success">OPERATIONAL</span> Model Plugin Benchmarking (Phase 8 &amp; 8.1)</li>
+                  <li class="status-item"><span class="badge-success">OPERATIONAL</span> Out-of-Sample VaR Backtesting (Phase 8.2)</li>
+                  <li class="status-item"><span class="badge-accent">ACTIVE</span> Application Interface &amp; REST API (Phase 9)</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Security &amp; Containment Boundaries</h3></div>
+              <div class="card-body text-xs text-muted space-y-2">
+                <p>• <strong>In-Process Execution:</strong> Model plugins execute strictly in-process with caller permissions. Untrusted arbitrary code execution is prevented.</p>
+                <p>• <strong>Path Traversal Defense:</strong> Filename inputs are strictly sanitized via basename extraction to eliminate filesystem traversal vulnerabilities.</p>
+                <p>• <strong>Finite Numerical Arithmetic:</strong> Engine rejects non-finite IEEE 754 floats (NaN and Inf) at input validation boundaries.</p>
+                <p>• <strong>Strict Scope Boundary:</strong> No live market trading credentials, Upstox tokens, or cloud storage connections are embedded or active in Phase 9.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Portfolio Import Modal -->
+  <div class="modal-overlay" id="uploadModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Import Portfolio</h3>
+        <button class="modal-close" id="btnCloseUploadModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group mb-3">
+          <label for="uploadFormat">Format:</label>
+          <select id="uploadFormat" class="select-control">
+            <option value="json" selected>JSON Portfolio</option>
+            <option value="csv">CSV (asset_id, quantity, price, sector)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="uploadContent">Paste File Content:</label>
+          <textarea id="uploadContent" class="textarea-control" rows="8" placeholder='{"portfolio_id": "my_portfolio", "currency": "INR", "holdings": [{"asset_id": "INFY", "quantity": 10, "price": 1500, "sector": "Information Technology"}]}'></textarea>
+        </div>
+        <div class="modal-error text-rose text-xs mt-2" id="uploadError" style="display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnCancelUpload">Cancel</button>
+        <button class="btn btn-primary" id="btnSubmitUpload">Validate &amp; Load</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

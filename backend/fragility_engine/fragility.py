@@ -863,3 +863,665 @@ def rank_perturbation_sensitivities(
         max_absolute_change=max_abs,
         max_relative_change=max_rel,
     )
+
+
+# ==============================================================================
+# 7. Additional Blueprint Assumption Attacks (§4, §12, §17)
+# ==============================================================================
+
+def run_outlier_sensitivity_attack(
+    returns: Sequence[float] | np.ndarray,
+    trim_pct: float = 0.05,
+    method: str = "winsorize",
+    confidence_level: float = 0.95,
+    annualization_factor: float = 252.0,
+    experiment_id: str = "exp_outlier_sensitivity",
+) -> FragilityExperimentResult:
+    """Evaluate how sensitive risk metrics are to extreme outlier returns.
+
+    Args:
+        returns: Sequence of periodic asset or portfolio returns.
+        trim_pct: Tail fraction to trim or winsorize (must be between 0.0 and 0.20).
+        method: 'winsorize' (clamp extreme values) or 'trim' (drop extreme values).
+        confidence_level: VaR / ES confidence level.
+        annualization_factor: Trading periods per year.
+        experiment_id: Unique experiment run identifier.
+
+    Returns:
+        FragilityExperimentResult evaluating outlier impact.
+    """
+    if returns is None:
+        raise TypeError("returns sequence cannot be None")
+    arr = np.asarray(returns, dtype=np.float64)
+    if len(arr) < 5:
+        raise ValueError(f"returns sequence must have at least 5 observations; got {len(arr)}")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError("returns sequence contains non-finite values")
+
+    pct = float(trim_pct)
+    if not math.isfinite(pct) or pct <= 0.0 or pct >= 0.25:
+        raise ValueError(f"trim_pct must be strictly between 0.0 and 0.25; got {trim_pct!r}")
+
+    method_clean = str(method).lower().strip()
+    if method_clean not in ("winsorize", "trim"):
+        raise ValueError(f"method must be 'winsorize' or 'trim'; got {method!r}")
+
+    baseline_metrics = _compute_core_metrics(arr, annualization_factor=annualization_factor)
+
+    low_q = float(np.quantile(arr, pct))
+    high_q = float(np.quantile(arr, 1.0 - pct))
+
+    if method_clean == "winsorize":
+        perturbed_arr = np.clip(arr, low_q, high_q)
+    else:
+        mask = (arr >= low_q) & (arr <= high_q)
+        perturbed_arr = arr[mask]
+        if len(perturbed_arr) < 3:
+            raise ValueError("Trimming resulted in insufficient observations (< 3)")
+
+    perturbed_metrics = _compute_core_metrics(perturbed_arr, annualization_factor=annualization_factor)
+    abs_changes, rel_changes = compute_changes(baseline_metrics, perturbed_metrics)
+
+    config = {
+        "trim_pct": pct,
+        "method": method_clean,
+        "confidence_level": confidence_level,
+        "annualization_factor": annualization_factor,
+    }
+
+    limitations = (
+        f"Outlier {method_clean} removes real market distribution heaviness and assumes tail events are ignorable noise.",
+    )
+
+    return FragilityExperimentResult(
+        experiment_id=experiment_id,
+        perturbation_id="outlier_sensitivity",
+        perturbation_name=f"Outlier Tail Sensitivity ({method_clean.title()})",
+        description=f"Evaluates vulnerability of risk estimates when {pct:.1%} of extreme tails are {method_clean}d.",
+        configuration=config,
+        baseline_metrics=baseline_metrics,
+        perturbed_metrics=perturbed_metrics,
+        absolute_changes=abs_changes,
+        relative_changes=rel_changes,
+        observations_used=len(perturbed_arr),
+        warnings=(),
+        limitations=limitations,
+    )
+
+
+def run_missing_data_attack(
+    returns: Sequence[float] | np.ndarray,
+    drop_rate: float = 0.05,
+    impute_method: str = "forward_fill",
+    confidence_level: float = 0.95,
+    annualization_factor: float = 252.0,
+    random_seed: int = 42,
+    experiment_id: str = "exp_missing_data",
+) -> FragilityExperimentResult:
+    """Evaluate how missing observations and imputation policies perturb risk estimates.
+
+    Args:
+        returns: Sequence of periodic asset or portfolio returns.
+        drop_rate: Fraction of random observations to treat as missing.
+        impute_method: 'forward_fill' (zero return) or 'drop' (remove periods).
+        confidence_level: VaR / ES confidence level.
+        annualization_factor: Trading periods per year.
+        random_seed: Deterministic seed for reproducible dropout masking.
+        experiment_id: Unique experiment run identifier.
+
+    Returns:
+        FragilityExperimentResult evaluating missing-data sensitivity.
+    """
+    if returns is None:
+        raise TypeError("returns sequence cannot be None")
+    arr = np.asarray(returns, dtype=np.float64)
+    if len(arr) < 10:
+        raise ValueError(f"returns sequence must have at least 10 observations; got {len(arr)}")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError("returns sequence contains non-finite values")
+
+    dr = float(drop_rate)
+    if not math.isfinite(dr) or dr <= 0.0 or dr >= 0.50:
+        raise ValueError(f"drop_rate must be strictly between 0.0 and 0.50; got {drop_rate!r}")
+
+    method_clean = str(impute_method).lower().strip()
+    if method_clean not in ("forward_fill", "drop"):
+        raise ValueError(f"impute_method must be 'forward_fill' or 'drop'; got {impute_method!r}")
+
+    baseline_metrics = _compute_core_metrics(arr, annualization_factor=annualization_factor)
+
+    rng = np.random.RandomState(random_seed)
+    drop_mask = rng.rand(len(arr)) < dr
+
+    # Ensure at least 1 dropped and at least 5 retained
+    if not np.any(drop_mask):
+        drop_mask[0] = True
+
+    if method_clean == "forward_fill":
+        # Price forward fill implies zero period return on missing dates
+        perturbed_arr = arr.copy()
+        perturbed_arr[drop_mask] = 0.0
+    else:
+        perturbed_arr = arr[~drop_mask]
+        if len(perturbed_arr) < 5:
+            raise ValueError("Missing data drop resulted in fewer than 5 observations")
+
+    perturbed_metrics = _compute_core_metrics(perturbed_arr, annualization_factor=annualization_factor)
+    abs_changes, rel_changes = compute_changes(baseline_metrics, perturbed_metrics)
+
+    config = {
+        "drop_rate": dr,
+        "impute_method": method_clean,
+        "random_seed": random_seed,
+        "confidence_level": confidence_level,
+    }
+
+    limitations = (
+        "Forward-filling prices dampens measured historical volatility and compresses reported tail risk.",
+    )
+
+    return FragilityExperimentResult(
+        experiment_id=experiment_id,
+        perturbation_id="missing_data_policy",
+        perturbation_name="Missing Data Policy Perturbation",
+        description=f"Challenges risk models with {dr:.1%} missing data using {method_clean} policy.",
+        configuration=config,
+        baseline_metrics=baseline_metrics,
+        perturbed_metrics=perturbed_metrics,
+        absolute_changes=abs_changes,
+        relative_changes=rel_changes,
+        observations_used=len(perturbed_arr),
+        warnings=(),
+        limitations=limitations,
+    )
+
+
+def run_regime_shift_attack(
+    returns: Sequence[float] | np.ndarray,
+    window_length: Optional[int] = None,
+    confidence_level: float = 0.95,
+    annualization_factor: float = 252.0,
+    experiment_id: str = "exp_regime_shift",
+) -> FragilityExperimentResult:
+    """Evaluate fragility under a market regime shift by testing risk in the most volatile window.
+
+    Args:
+        returns: Sequence of periodic asset or portfolio returns.
+        window_length: Length of the high-volatility stress regime window (default: len/3).
+        confidence_level: VaR / ES confidence level.
+        annualization_factor: Trading periods per year.
+        experiment_id: Unique experiment run identifier.
+
+    Returns:
+        FragilityExperimentResult evaluating crisis regime risk vs full sample.
+    """
+    if returns is None:
+        raise TypeError("returns sequence cannot be None")
+    arr = np.asarray(returns, dtype=np.float64)
+    if len(arr) < 15:
+        raise ValueError(f"returns sequence must have at least 15 observations for regime shift; got {len(arr)}")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError("returns sequence contains non-finite values")
+
+    w = int(window_length) if window_length is not None else max(5, len(arr) // 3)
+    if w < 5 or w >= len(arr):
+        raise ValueError(f"window_length must be between 5 and {len(arr)-1}; got {w}")
+
+    baseline_metrics = _compute_core_metrics(arr, annualization_factor=annualization_factor)
+
+    # Find highest rolling variance window
+    max_vol = -1.0
+    best_start = 0
+    for i in range(len(arr) - w + 1):
+        sub = arr[i : i + w]
+        v = float(np.std(sub, ddof=1))
+        if v > max_vol:
+            max_vol = v
+            best_start = i
+
+    stress_regime = arr[best_start : best_start + w]
+    perturbed_metrics = _compute_core_metrics(stress_regime, annualization_factor=annualization_factor)
+    abs_changes, rel_changes = compute_changes(baseline_metrics, perturbed_metrics)
+
+    config = {
+        "regime_window_length": w,
+        "stress_window_start": best_start,
+        "stress_window_end": best_start + w,
+        "confidence_level": confidence_level,
+    }
+
+    limitations = (
+        "Sub-sample regime analysis isolates peak-volatility periods but exhibits higher sampling variance.",
+    )
+
+    return FragilityExperimentResult(
+        experiment_id=experiment_id,
+        perturbation_id="regime_shift",
+        perturbation_name="High-Volatility Regime Shift Attack",
+        description=f"Calibrates risk exclusively on peak-volatility historical sub-regime ({w} periods).",
+        configuration=config,
+        baseline_metrics=baseline_metrics,
+        perturbed_metrics=perturbed_metrics,
+        absolute_changes=abs_changes,
+        relative_changes=rel_changes,
+        observations_used=len(stress_regime),
+        warnings=(),
+        limitations=limitations,
+    )
+
+
+# ==============================================================================
+# 8. Fragility Audit Suite & Report Dataclass
+# ==============================================================================
+
+@dataclass(frozen=True)
+class FragilityAuditReport:
+    """Consolidated report produced by a multi-perturbation fragility audit.
+
+    Attributes:
+        audit_id: Unique audit run identifier.
+        target_metric: Designated primary risk metric used for sensitivity ranking.
+        experiments: All individual executed perturbation experiments.
+        sensitivity_ranking: Ranked list of sensitivities.
+        summary: Diagnostic metadata and executive takeaway.
+    """
+
+    audit_id: str
+    target_metric: str
+    experiments: Tuple[FragilityExperimentResult, ...]
+    sensitivity_ranking: MetricSensitivityRanking
+    summary: Dict[str, Any]
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert report to dictionary."""
+        return {
+            "audit_id": self.audit_id,
+            "target_metric": self.target_metric,
+            "experiments": [e.to_dict() for e in self.experiments],
+            "sensitivity_ranking": self.sensitivity_ranking.to_dict(),
+            "summary": dict(self.summary),
+        }
+
+
+def run_fragility_audit(
+    returns: Sequence[float] | np.ndarray,
+    target_metric: str = "volatility_annualized",
+    audit_id: str = "audit_default",
+) -> FragilityAuditReport:
+    """Execute a comprehensive standard battery of fragility attacks on returns.
+
+    Runs:
+    1. Lookback window contraction (50% sample reduction).
+    2. Volatility estimator change (sample stdev -> EWMA decay 0.94).
+    3. Tail confidence level shift (95% -> 99%).
+    4. Transaction friction shock (+15 bps).
+    5. Outlier sensitivity winsorization (5% tails).
+
+    Args:
+        returns: Sequence of periodic asset or portfolio returns.
+        target_metric: Risk metric to rank sensitivities against (default 'volatility_annualized').
+        audit_id: Unique audit identifier.
+
+    Returns:
+        FragilityAuditReport with all experiments and ranked sensitivities.
+    """
+    arr = np.asarray(returns, dtype=np.float64)
+    if len(arr) < 10:
+        raise ValueError(f"returns sequence must have at least 10 observations for an audit; got {len(arr)}")
+
+    experiments: List[FragilityExperimentResult] = []
+
+    # 1. Lookback contraction
+    half_window = max(5, len(arr) // 2)
+    experiments.append(
+        run_lookback_perturbation(arr, perturbed_window=half_window, experiment_id=f"{audit_id}_lookback")
+    )
+
+    # 2. Estimator
+    experiments.append(
+        run_volatility_estimator_perturbation(arr, decay_factor=0.94, experiment_id=f"{audit_id}_ewma")
+    )
+
+    # 3. Confidence level
+    experiments.append(
+        run_confidence_level_perturbation(arr, baseline_confidence=0.95, perturbed_confidence=0.99, experiment_id=f"{audit_id}_tail_conf")
+    )
+
+    # 4. Friction
+    experiments.append(
+        run_return_friction_perturbation(arr, friction_bps=15.0, experiment_id=f"{audit_id}_friction")
+    )
+
+    # 5. Outlier sensitivity
+    experiments.append(
+        run_outlier_sensitivity_attack(arr, trim_pct=0.05, method="winsorize", experiment_id=f"{audit_id}_outliers")
+    )
+
+    ranking = rank_perturbation_sensitivities(experiments, target_metric=target_metric)
+
+    summary = {
+        "observations": len(arr),
+        "target_metric": target_metric,
+        "most_sensitive_perturbation": ranking.most_sensitive_perturbation,
+        "max_absolute_change": ranking.max_absolute_change,
+        "max_relative_change": ranking.max_relative_change,
+        "experiments_count": len(experiments),
+    }
+
+    return FragilityAuditReport(
+        audit_id=audit_id,
+        target_metric=target_metric,
+        experiments=tuple(experiments),
+        sensitivity_ranking=ranking,
+        summary=summary,
+    )
+
+
+# ==============================================================================
+# 9. Stress-Boundary Search (Blueprint §6 & §8)
+# ==============================================================================
+
+@dataclass(frozen=True)
+class StressBoundaryResult:
+    """Outcome of an iterative stress-boundary search for acceptance criterion failure.
+
+    Attributes:
+        target_metric: Name of metric being monitored (e.g. 'sharpe_ratio', 'total_return').
+        failure_threshold: Boundary threshold where model/portfolio is deemed unacceptable.
+        boundary_parameter_value: Discovered parameter value where metric crosses threshold (None if not reached).
+        attack_type: Type of perturbation searched ('transaction_friction', 'volatility_multiplier', etc.).
+        baseline_metric_value: Unperturbed metric value.
+        final_metric_value: Metric value achieved at the boundary parameter.
+        iterations: Number of evaluation iterations performed.
+        converged: Whether bisection converged within specified numerical tolerance.
+        explanation: Quantitative explanation of break-even boundary.
+    """
+
+    target_metric: str
+    failure_threshold: float
+    boundary_parameter_value: Optional[float]
+    attack_type: str
+    baseline_metric_value: float
+    final_metric_value: Optional[float]
+    iterations: int
+    converged: bool
+    explanation: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "target_metric": self.target_metric,
+            "failure_threshold": self.failure_threshold,
+            "boundary_parameter_value": (
+                round(self.boundary_parameter_value, 6) if self.boundary_parameter_value is not None else None
+            ),
+            "attack_type": self.attack_type,
+            "baseline_metric_value": round(self.baseline_metric_value, 6),
+            "final_metric_value": round(self.final_metric_value, 6) if self.final_metric_value is not None else None,
+            "iterations": self.iterations,
+            "converged": self.converged,
+            "explanation": self.explanation,
+        }
+
+
+def _evaluate_metric_under_param(
+    returns: np.ndarray,
+    target_metric: str,
+    attack_type: str,
+    param: float,
+    annualization: float = 252.0,
+) -> float:
+    """Helper to evaluate target metric under a specific perturbation parameter."""
+    if attack_type in ("transaction_friction", "cost", "friction"):
+        # Shift periodic return downward by daily friction param
+        perturbed_r = returns - param
+    elif attack_type in ("volatility_multiplier", "vol_multiplier", "volatility"):
+        # Scale fluctuations around mean
+        mean = float(np.mean(returns))
+        perturbed_r = mean + (returns - mean) * param
+    else:
+        raise ValueError(f"Unsupported attack_type for boundary search: '{attack_type}'")
+
+    if target_metric == "sharpe_ratio":
+        std = float(np.std(perturbed_r, ddof=1))
+        if std <= 1e-12:
+            return 0.0
+        return float(np.mean(perturbed_r) / std * math.sqrt(annualization))
+
+    elif target_metric in ("total_return", "cumulative_return"):
+        # Product of (1 + r) - 1
+        return float(np.prod(1.0 + perturbed_r) - 1.0)
+
+    elif target_metric in ("mean_return", "annualized_return"):
+        mean = float(np.mean(perturbed_r))
+        return mean * annualization if target_metric == "annualized_return" else mean
+
+    elif target_metric in ("volatility_annualized", "volatility"):
+        return float(np.std(perturbed_r, ddof=1) * math.sqrt(annualization))
+
+    elif target_metric in ("historical_var_95", "var_95"):
+        losses = -perturbed_r
+        return float(np.percentile(losses, 95.0))
+
+    else:
+        raise ValueError(f"Unsupported target_metric for boundary search: '{target_metric}'")
+
+
+def run_stress_boundary_search(
+    returns: Sequence[float] | np.ndarray,
+    target_metric: str = "sharpe_ratio",
+    failure_threshold: float = 0.0,
+    attack_type: str = "transaction_friction",
+    min_param: float = 0.0,
+    max_param: float = 0.05,
+    tolerance: float = 1e-4,
+    max_iter: int = 30,
+) -> StressBoundaryResult:
+    """Search for the parameter threshold where a model crosses an acceptance failure boundary (§6, §8).
+
+    Uses robust root bisection to discover break-even friction, volatility limits, or cost ceilings.
+
+    Validation & Bracket Guarantees:
+    - Rejects invalid or inverted intervals (min_param >= max_param).
+    - Rejects nonpositive tolerances (tolerance <= 0.0) or invalid iteration counts (max_iter < 1).
+    - Checks whether the baseline already fails the threshold without stress (iterations=0, converged=True).
+    - Checks whether the metric never crosses the threshold within [min_param, max_param] (converged=False).
+    - Rejects mathematically unsupported or translation-invariant pairs (e.g. volatility under friction).
+    - Safely terminates with converged=False if non-finite metrics (NaN/Inf) are encountered.
+
+    Args:
+        returns: Empirical periodic return sequence.
+        target_metric: Monitored metric ('sharpe_ratio', 'total_return', 'annualized_return', etc.).
+        failure_threshold: Boundary threshold where result fails acceptance.
+        attack_type: Perturbation mechanism ('transaction_friction', 'volatility_multiplier').
+        min_param: Lower bound of parameter search interval.
+        max_param: Upper bound of parameter search interval.
+        tolerance: Parameter convergence tolerance.
+        max_iter: Maximum bisection iterations.
+
+    Returns:
+        StressBoundaryResult with the exact break-even boundary parameter value or non-convergence explanation.
+
+    Raises:
+        ValueError: If input series is too short (<5), bounds are invalid/inverted, or parameters are non-finite.
+    """
+    arr = np.asarray(returns, dtype=np.float64)
+    if len(arr) < 5:
+        raise ValueError("At least 5 return observations required for stress-boundary search.")
+
+    # 1. Parameter and boundary sanity validation
+    if not isinstance(min_param, (int, float)) or isinstance(min_param, bool) or not math.isfinite(min_param):
+        raise ValueError(f"min_param must be a finite real number; got {min_param!r}")
+    if not isinstance(max_param, (int, float)) or isinstance(max_param, bool) or not math.isfinite(max_param):
+        raise ValueError(f"max_param must be a finite real number; got {max_param!r}")
+    if min_param >= max_param:
+        raise ValueError(
+            f"min_param ({min_param}) must be strictly less than max_param ({max_param}); equal or inverted bounds are rejected."
+        )
+
+    if not isinstance(tolerance, (int, float)) or isinstance(tolerance, bool) or not math.isfinite(tolerance) or tolerance <= 0.0:
+        raise ValueError(f"tolerance must be a finite positive number; got {tolerance!r}")
+
+    if not isinstance(max_iter, int) or isinstance(max_iter, bool) or max_iter < 1:
+        raise ValueError(f"max_iter must be an integer >= 1; got {max_iter!r}")
+
+    if not isinstance(failure_threshold, (int, float)) or isinstance(failure_threshold, bool) or not math.isfinite(failure_threshold):
+        raise ValueError(f"failure_threshold must be a finite real number; got {failure_threshold!r}")
+
+    # 2. Monotonicity and bracket compatibility check
+    is_lower_bounded = target_metric in (
+        "sharpe_ratio", "total_return", "cumulative_return", "mean_return", "annualized_return"
+    )
+    is_upper_bounded = target_metric in (
+        "volatility_annualized", "volatility", "historical_var_95", "var_95"
+    )
+
+    if not is_lower_bounded and not is_upper_bounded:
+        raise ValueError(f"Unsupported target_metric for boundary search: '{target_metric}'")
+
+    # Invariance check: friction shifts returns by constant; volatility is invariant to translation
+    if attack_type in ("transaction_friction", "cost", "friction") and is_upper_bounded:
+        return StressBoundaryResult(
+            target_metric=target_metric,
+            failure_threshold=failure_threshold,
+            boundary_parameter_value=None,
+            attack_type=attack_type,
+            baseline_metric_value=float(np.std(arr, ddof=1) * math.sqrt(252.0)),
+            final_metric_value=None,
+            iterations=0,
+            converged=False,
+            explanation=(
+                f"Metric '{target_metric}' is invariant to linear translation under '{attack_type}'. "
+                "Bisection search is mathematically unsupported because parameter changes do not alter volatility."
+            ),
+        )
+
+    # 3. Evaluate endpoints
+    m_base = _evaluate_metric_under_param(arr, target_metric, attack_type, min_param)
+    if not math.isfinite(m_base):
+        return StressBoundaryResult(
+            target_metric=target_metric,
+            failure_threshold=failure_threshold,
+            boundary_parameter_value=None,
+            attack_type=attack_type,
+            baseline_metric_value=m_base,
+            final_metric_value=None,
+            iterations=0,
+            converged=False,
+            explanation=f"Baseline metric evaluation yielded non-finite value ({m_base}) at min_param={min_param}.",
+        )
+
+    # Check if baseline already violates failure threshold
+    baseline_fails = (m_base <= failure_threshold) if is_lower_bounded else (m_base >= failure_threshold)
+    if baseline_fails:
+        condition_desc = "acceptance threshold" if is_lower_bounded else "risk limit"
+        return StressBoundaryResult(
+            target_metric=target_metric,
+            failure_threshold=failure_threshold,
+            boundary_parameter_value=min_param,
+            attack_type=attack_type,
+            baseline_metric_value=m_base,
+            final_metric_value=m_base,
+            iterations=0,
+            converged=True,
+            explanation=f"Baseline metric ({m_base:.4f}) already violates and already fails acceptance threshold ({failure_threshold:.4f}) without stress at min_param={min_param}.",
+        )
+
+    m_max = _evaluate_metric_under_param(arr, target_metric, attack_type, max_param)
+    if not math.isfinite(m_max):
+        return StressBoundaryResult(
+            target_metric=target_metric,
+            failure_threshold=failure_threshold,
+            boundary_parameter_value=None,
+            attack_type=attack_type,
+            baseline_metric_value=m_base,
+            final_metric_value=m_max,
+            iterations=1,
+            converged=False,
+            explanation=f"Maximum parameter metric evaluation yielded non-finite value ({m_max}) at max_param={max_param}.",
+        )
+
+    # Check if max_param still does NOT violate threshold (unbracketed boundary)
+    max_fails = (m_max <= failure_threshold) if is_lower_bounded else (m_max >= failure_threshold)
+    if not max_fails:
+        return StressBoundaryResult(
+            target_metric=target_metric,
+            failure_threshold=failure_threshold,
+            boundary_parameter_value=None,
+            attack_type=attack_type,
+            baseline_metric_value=m_base,
+            final_metric_value=m_max,
+            iterations=1,
+            converged=False,
+            explanation=(
+                f"Metric ({m_max:.4f}) remains acceptable even at maximum tested parameter ({max_param:.4f}). "
+                "Failure threshold is unbracketed within the search interval."
+            ),
+        )
+
+    # 4. Bisection root search
+    low, high = min_param, max_param
+    mid = (low + high) / 2.0
+    m_mid = m_base
+    iters = 0
+
+    while (high - low) > tolerance and iters < max_iter:
+        iters += 1
+        mid = (low + high) / 2.0
+        m_mid = _evaluate_metric_under_param(arr, target_metric, attack_type, mid)
+        if not math.isfinite(m_mid):
+            return StressBoundaryResult(
+                target_metric=target_metric,
+                failure_threshold=failure_threshold,
+                boundary_parameter_value=None,
+                attack_type=attack_type,
+                baseline_metric_value=m_base,
+                final_metric_value=m_mid,
+                iterations=iters,
+                converged=False,
+                explanation=f"Non-finite metric value ({m_mid}) encountered at parameter {mid:.6f}.",
+            )
+
+        if is_lower_bounded:
+            if m_mid > failure_threshold:
+                low = mid
+            else:
+                high = mid
+        else:
+            if m_mid < failure_threshold:
+                low = mid
+            else:
+                high = mid
+
+    converged = (high - low) <= tolerance
+    bps_msg = f" ({mid * 10000:.1f} bps)" if attack_type == "transaction_friction" else ""
+    if converged:
+        explanation = (
+            f"Break-even boundary discovered at parameter value {mid:.6f}{bps_msg}. "
+            f"Beyond this threshold, {target_metric} deteriorates past {failure_threshold:.4f}."
+        )
+    else:
+        explanation = (
+            f"Bisection search reached iteration limit ({max_iter}) without achieving tolerance ({tolerance}). "
+            f"Final parameter estimate: {mid:.6f}, bracket width: {high - low:.6f}."
+        )
+
+    return StressBoundaryResult(
+        target_metric=target_metric,
+        failure_threshold=failure_threshold,
+        boundary_parameter_value=mid,
+        attack_type=attack_type,
+        baseline_metric_value=m_base,
+        final_metric_value=m_mid,
+        iterations=iters,
+        converged=converged,
+        explanation=explanation,
+    )
+
+
+# Public aliases matching Blueprint terminology (§4, §12)
+run_lookback_window_attack = run_lookback_perturbation
+run_volatility_estimator_attack = run_volatility_estimator_perturbation
+run_transaction_cost_attack = run_return_friction_perturbation
+run_liquidation_cost_attack = calculate_portfolio_liquidation_shock
+run_confidence_level_attack = run_confidence_level_perturbation
+run_correlation_stress_attack = run_correlation_perturbation

@@ -1,0 +1,15 @@
+{
+  "project_id": "cli_proj_01",
+  "name": "CLI Project",
+  "description": "",
+  "objective": "CLI Test",
+  "asset_universe": [
+    "NIFTY_50"
+  ],
+  "model_type": "portfolio",
+  "created_at": "",
+  "dataset_ids": [],
+  "model_ids": [],
+  "experiment_ids": [],
+  "metadata": {}
+}
